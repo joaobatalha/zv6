@@ -12,6 +12,7 @@
 #include "param.h"
 
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 int nblocks = 985;
 int nlog = LOGSIZE;
@@ -33,7 +34,9 @@ void rinode(uint inum, struct dinode *ip);
 void rsect(uint sec, void *buf);
 uint ialloc(ushort type);
 void iappend(uint inum, void *p, int n);
-uint ichecksum(uint inum);
+uint ichecksum(struct dinode *din);
+void rblock(struct dinode *din, uint bn, char * dst);
+int readi(struct dinode *din, char * dst, uint off, uint n);
 
 // convert to intel byte order
 ushort
@@ -66,7 +69,7 @@ main(int argc, char *argv[])
   struct dirent de;
   char buf[512];
   struct dinode din, din2;
-  uint checksum;
+  unsigned int checksum;
 
 
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
@@ -145,14 +148,34 @@ main(int argc, char *argv[])
     de.inum = xshort(inum);
     strncpy(de.name, argv[i], DIRSIZ);
     iappend(rootino, &de, sizeof(de));
-
-    while((cc = read(fd, buf, sizeof(buf))) > 0)
+    checksum = 0;
+    fprintf(stderr, "name of file: %s \n", argv[i]);
+    int counter2 = 0;
+    char * cbuf = (char * )buf;
+    memset((void *) cbuf,0,sizeof(buf)); 
+    while((cc = read(fd, buf, sizeof(buf))) > 0){
+      counter2 += cc;
+      uint i;
+      unsigned int * bp = (unsigned int *)buf;
+      char * cbuf = (char * )buf;
+      memset((void *) cbuf + cc,0,sizeof(buf) - cc); 
+      for(i = 0; i < sizeof(buf)/sizeof(uint); i++){
+	checksum ^= *bp;
+	bp++;
+      }
       iappend(inum, buf, cc);
+    }
+    fprintf(stderr, "Size of the file: %s is %d bytes \n",argv[i],counter2);
+    fprintf(stderr, "Checksum computed NOT through ichecksum: %x \n", checksum);
     //Read Inode we just wrote to
     //update its checksum
     rinode(inum, &din2);
-    checksum = ichecksum(inum);
-    din2.checksum = xint(checksum);
+    char temp_buf[BSIZE];
+    readi(&din2,(char*)temp_buf,0,BSIZE);
+    unsigned int checksum2 = 0;
+    checksum2 = ichecksum(&din2);
+    fprintf(stderr,"Checksum computed through ichecksum: %x \n", checksum2);
+    din2.checksum = xint(checksum2);
     winode(inum, &din2);
 
     close(fd);
@@ -164,8 +187,9 @@ main(int argc, char *argv[])
   off = xint(din.size);
   off = ((off/BSIZE) + 1) * BSIZE;
   din.size = xint(off);
-  checksum = ichecksum(rootino);
+  checksum = ichecksum(&din);
   din.checksum = xint(checksum);
+  fprintf(stderr, "Rootino: %d \n", rootino);
   winode(rootino, &din);
 
   balloc(usedblocks);
@@ -262,7 +286,6 @@ balloc(int used)
   wsect(ninodes / IPB + 3, buf);
 }
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
 
 void
 iappend(uint inum, void *xp, int n)
@@ -313,8 +336,70 @@ iappend(uint inum, void *xp, int n)
   winode(inum, &din);
 }
 
+int 
+readi(struct dinode *din, char *dst, uint off, uint n){
+    uint tot, m, fbn;
+    char data[BSIZE];
+    char *cdata = (char *)data;
+
+    if(xint(din->type) == T_DEV){
+	fprintf(stderr, "Reading DEV file. Not implemented in readi in mkfs\n");
+	return -1;
+    }
+    if(off > xint(din->size) || off + n < off){
+	return -1;
+    }
+    if(off + n > xint(din->size)){
+	n = xint(din->size) - off;
+    }
+
+    for(tot = 0; tot < n;tot +=m, off+=m, dst+=m){
+	fbn = off / BSIZE;
+	rblock(din, fbn, (char*)data);
+	m = min(n - tot, BSIZE - off%BSIZE);
+	memmove(dst, cdata + off%BSIZE, m);
+    }
+    return n;
+}
+
+void 
+rblock(struct dinode *din, uint bn, char *dst){
+    uint indirect[NINDIRECT];
+    uint addr;
+    if(bn < NDIRECT){
+	rsect(xint(din->addrs[bn]), dst);
+	return;
+    }
+    bn -= NDIRECT;
+
+    if(bn < NINDIRECT){
+	rsect(xint(din->addrs[NDIRECT]), (char*)indirect);	
+	addr = xint(indirect[bn]);
+	rsect(addr, dst);
+	return;
+    }
+}
 /* Here I am taking the inum instead of the inode like in fs.c */
 uint
-ichecksum(uint inum){
-    return 6;
+ichecksum(struct dinode *din){
+    unsigned int buf[512];
+    char *cbuf = (char *) buf;
+    uint n = sizeof(buf);
+    uint off = 0;
+    uint r, i;
+    unsigned int checksum = 0;
+    memset((void *) cbuf,0,n); 
+    unsigned int * bp;
+
+    while((r = readi(din, cbuf,off,n)) > 0){
+	off += r;
+	bp = (unsigned int *)buf;
+	for(i = 0; i < sizeof(buf) / sizeof(uint); i++){ 
+	    checksum ^= *bp;
+	    bp++;
+	}
+	memset((void *) cbuf,0,n); 
+    }
+
+    return checksum;
 }
