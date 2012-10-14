@@ -324,15 +324,20 @@ ilock(struct inode *ip)
 
     //We do not want to checksum files like console
     if(ip->type != T_DEV){
-	if((ichecksum(ip) != dip->checksum)){
+	uint checksum = ichecksum(ip);
+	if(checksum != ip->checksum){
+	    cprintf("============================\n");
 	    cprintf("The inum: %d \n", ip->inum);
-	    cprintf("Checksum in dinode: %x \n",dip->checksum);
-	    cprintf("Computed checksum: %x \n",ichecksum(ip));
+	    cprintf("Checksum in inode: %x \n",ip->checksum);
+	    cprintf("Computed checksum: %x \n",checksum);
+	    cprintf("============================\n");
 	    panic("Checksums do not match!");
 	}
     }
-
+    cprintf("The checksums MATCHED!\n");
+    cprintf("The inum: %d \n", ip->inum);               
     brelse(bp);
+
     ip->flags |= I_VALID;
     if(ip->type == 0)
       panic("ilock: no type");

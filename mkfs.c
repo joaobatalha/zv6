@@ -149,7 +149,7 @@ main(int argc, char *argv[])
     strncpy(de.name, argv[i], DIRSIZ);
     iappend(rootino, &de, sizeof(de));
     checksum = 0;
-    fprintf(stderr, "name of file: %s \n", argv[i]);
+    fprintf(stderr, "Name of file: %s \n", argv[i]);
     int counter2 = 0;
     char * cbuf = (char * )buf;
     memset((void *) cbuf,0,sizeof(buf)); 
@@ -166,7 +166,7 @@ main(int argc, char *argv[])
       iappend(inum, buf, cc);
     }
     fprintf(stderr, "Size of the file: %s is %d bytes \n",argv[i],counter2);
-    fprintf(stderr, "Checksum computed NOT through ichecksum: %x \n", checksum);
+    fprintf(stderr, "Checksum from fd: %x \n", checksum);
     //Read Inode we just wrote to
     //update its checksum
     rinode(inum, &din2);
@@ -174,7 +174,7 @@ main(int argc, char *argv[])
     readi(&din2,(char*)temp_buf,0,BSIZE);
     unsigned int checksum2 = 0;
     checksum2 = ichecksum(&din2);
-    fprintf(stderr,"Checksum computed through ichecksum: %x \n", checksum2);
+    fprintf(stderr,"INODE: %d Checksum computed through ichecksum: %x \n", inum, checksum2);
     din2.checksum = xint(checksum2);
     winode(inum, &din2);
 
@@ -189,7 +189,6 @@ main(int argc, char *argv[])
   din.size = xint(off);
   checksum = ichecksum(&din);
   din.checksum = xint(checksum);
-  fprintf(stderr, "Rootino: %d \n", rootino);
   winode(rootino, &din);
 
   balloc(usedblocks);
@@ -379,7 +378,7 @@ rblock(struct dinode *din, uint bn, char *dst){
 	return;
     }
 }
-/* Here I am taking the inum instead of the inode like in fs.c */
+
 uint
 ichecksum(struct dinode *din){
     unsigned int buf[512];
