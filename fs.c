@@ -233,7 +233,6 @@ iupdate(struct inode *ip)
 {
   struct buf *bp;
   struct dinode *dip;
-cprintf("iupdate called on inode %d.\n", ip->inum);
   bp = bread(ip->dev, IBLOCK(ip->inum));
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
@@ -361,7 +360,7 @@ zc_failure:
         panic("Checksums do not match!");
 
 zc_success:
-    cprintf("[inum %d] the checksums MATCHED!\n", ip->inum);
+    //cprintf("[inum %d] the checksums MATCHED!\n", ip->inum);
     brelse(bp);
 
     ip->flags |= I_VALID;
@@ -558,7 +557,8 @@ writei(struct inode *ip, char *src, uint off, uint n)
     brelse(bp);
   }
 
-  if(n > 0 && off > ip->size){
+  //An alternative is to do ip->type != T_DEV
+  if((n > 0 && off > ip->size) || ip->type == T_DIR){
     ip->size = off;
     iupdate(ip);
   }
