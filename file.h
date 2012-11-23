@@ -22,6 +22,10 @@ struct inode {
   short nlink;
   uint size;
   uint addrs[NDIRECT+1];
+  // ZV6 additions
+  short child1;
+  short child2;
+  uint checksum;
 };
 #define I_BUSY 0x1
 #define I_VALID 0x2
