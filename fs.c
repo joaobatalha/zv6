@@ -197,6 +197,12 @@ ialloc(uint dev, short type)
   panic("ialloc: no inodes");
 }
 
+//Compute inode checksum
+uint 
+ichecksum(struct inode *ip){
+    return 6;
+}
+
 // Copy a modified in-memory inode to disk.
 void
 iupdate(struct inode *ip)
@@ -213,6 +219,7 @@ iupdate(struct inode *ip)
   dip->size = ip->size;
   dip->child1 = ip->child1;
   dip->child2 = ip->child2;
+  ip->checksum = ichecksum(ip);
   dip->checksum = ip->checksum;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
@@ -293,6 +300,9 @@ ilock(struct inode *ip)
     ip->size = dip->size;
     ip->child1 = dip->child1;
     ip->child2 = dip->child2;
+    if(ichecksum(ip) != dip->checksum){
+	panic("Checksums do not match!");
+    }
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
