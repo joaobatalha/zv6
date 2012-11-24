@@ -198,9 +198,22 @@ ialloc(uint dev, short type)
 }
 
 //Compute inode checksum
-uint 
+uint
 ichecksum(struct inode *ip){
-    return 6;
+    uint buff[512];
+    char* cbuf = (char*) buff;
+    uint n = 512 * sizeof(uint) / sizeof(char);
+    uint off = 0;
+    uint r, i;
+    uint checksum = 0;
+    memset((void*) cbuf, 0, n);
+
+    while ((r = readi(ip, cbuf, off, n)) > 0) {
+      off += r;
+      for (i = 0; i < r / sizeof(uint); i++) checksum ^= buff[i];
+    }
+
+    return checksum;
 }
 
 // Copy a modified in-memory inode to disk.
