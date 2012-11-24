@@ -315,13 +315,14 @@ ilock(struct inode *ip)
     ip->size = dip->size;
     ip->child1 = dip->child1;
     ip->child2 = dip->child2;
-    //We do not want to checksum files like console
-    if((ichecksum(ip) != dip->checksum) && (ip->type != T_DEV)){
-	panic("Checksums do not match!");
-    }
-    //cprintf("JOAO: Checksums did match!\n");
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
+
+    //We do not want to checksum files like console
+    if((ichecksum(ip) != dip->checksum) && (ip->type != T_DEV)){
+        panic("Checksums do not match!");
+    }
+
     brelse(bp);
     ip->flags |= I_VALID;
     if(ip->type == 0)
