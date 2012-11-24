@@ -33,6 +33,7 @@ void rinode(uint inum, struct dinode *ip);
 void rsect(uint sec, void *buf);
 uint ialloc(ushort type);
 void iappend(uint inum, void *p, int n);
+uint ichecksum(uint inum);
 
 // convert to intel byte order
 ushort
@@ -64,7 +65,8 @@ main(int argc, char *argv[])
   uint rootino, inum, off;
   struct dirent de;
   char buf[512];
-  struct dinode din;
+  struct dinode din, din2;
+  uint checksum;
 
 
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
@@ -104,14 +106,17 @@ main(int argc, char *argv[])
   memmove(buf, &sb, sizeof(sb));
   wsect(1, buf);
 
+  //Allocate inode for root dir
   rootino = ialloc(T_DIR);
   assert(rootino == ROOTINO);
 
+  //insert a directory entry in it with "."
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
 
+  //insert a directory entry for ".."
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
@@ -132,8 +137,10 @@ main(int argc, char *argv[])
     if(argv[i][0] == '_')
       ++argv[i];
 
+    //For each of the fles in UPROGS we will create a file in xv6
     inum = ialloc(T_FILE);
 
+    //Insert a directory entry for each file
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, argv[i], DIRSIZ);
@@ -141,15 +148,24 @@ main(int argc, char *argv[])
 
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);
+    //Read Inode we just wrote to
+    //update its checksum
+    rinode(inum, &din2);
+    checksum = ichecksum(inum);
+    din2.checksum = xint(checksum);
+    winode(inum, &din2);
 
     close(fd);
   }
 
   // fix size of root inode dir
+  // also have to fix the checksum
   rinode(rootino, &din);
   off = xint(din.size);
   off = ((off/BSIZE) + 1) * BSIZE;
   din.size = xint(off);
+  checksum = ichecksum(rootino);
+  din.checksum = xint(checksum);
   winode(rootino, &din);
 
   balloc(usedblocks);
@@ -295,4 +311,10 @@ iappend(uint inum, void *xp, int n)
   }
   din.size = xint(off);
   winode(inum, &din);
+}
+
+/* Here I am taking the inum instead of the inode like in fs.c */
+uint
+ichecksum(uint inum){
+    return 6;
 }

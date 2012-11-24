@@ -188,6 +188,8 @@ ialloc(uint dev, short type)
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
+      //REMOVE AFTER IMPLEMENTING CHECKSUM!
+      dip->checksum = 6;
       log_write(bp);   // mark it allocated on the disk
       brelse(bp);
       return iget(dev, inum);
@@ -313,9 +315,11 @@ ilock(struct inode *ip)
     ip->size = dip->size;
     ip->child1 = dip->child1;
     ip->child2 = dip->child2;
-    if(ichecksum(ip) != dip->checksum){
+    //We do not want to checksum files like console
+    if((ichecksum(ip) != dip->checksum) && (ip->type != T_DEV)){
 	panic("Checksums do not match!");
     }
+    //cprintf("JOAO: Checksums did match!\n");
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
