@@ -188,8 +188,6 @@ ialloc(uint dev, short type)
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
-      //REMOVE AFTER IMPLEMENTING CHECKSUM!
-      dip->checksum = 6;
       log_write(bp);   // mark it allocated on the disk
       brelse(bp);
       return iget(dev, inum);
@@ -202,17 +200,23 @@ ialloc(uint dev, short type)
 //Compute inode checksum
 uint
 ichecksum(struct inode *ip){
-    uint buff[512];
-    char* cbuf = (char*) buff;
-    uint n = 512 * sizeof(uint) / sizeof(char);
+    unsigned int buf[512];
+    char* cbuf = (char*) buf;
+    uint n = sizeof(buf);
     uint off = 0;
     uint r, i;
-    uint checksum = 0;
+    unsigned int checksum = 0;
     memset((void*) cbuf, 0, n);
+    unsigned int * bp;
 
     while ((r = readi(ip, cbuf, off, n)) > 0) {
       off += r;
-      for (i = 0; i < r / sizeof(uint); i++) checksum ^= buff[i];
+      bp = (unsigned int *)buf;
+      for (i = 0; i < sizeof(buf) / sizeof(uint); i++){
+	  checksum ^= *bp;
+	  bp++;
+      }
+      memset((void *) cbuf, 0, n);
     }
 
     return checksum;
@@ -348,10 +352,18 @@ zc_verify:
        goto zc_verify;
     }
 zc_failure:
+        cprintf("============================\n");
+        cprintf("The inum: %d \n", ip->inum);
+        cprintf("Checksum in inode: %x \n",ip->checksum);
+        cprintf("Computed checksum: %x \n", ichecksum(ip));
+        cprintf("============================\n");
         panic("Checksums do not match!");
 
 zc_success:
+    cprintf("The checksums MATCHED!\n");
+    cprintf("The inum: %d \n", ip->inum);
     brelse(bp);
+
     ip->flags |= I_VALID;
     if(ip->type == 0)
       panic("ilock: no type");

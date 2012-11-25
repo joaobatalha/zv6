@@ -286,9 +286,10 @@ sys_open(void)
 
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
+  //cprintf("JOAO: Path is %s \n", path);
   if(omode & O_CREATE){
     begin_trans();
-    ip = create(path, T_FILE, 0, 0);
+    ip = create(path, T_FILE, 1, 0);
     commit_trans();
     if(ip == 0)
       return -1;
