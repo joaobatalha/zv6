@@ -318,11 +318,39 @@ ilock(struct inode *ip)
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
 
-    //We do not want to checksum files like console
-    if((ichecksum(ip) != dip->checksum) && (ip->type != T_DEV)){
-        panic("Checksums do not match!");
-    }
+    // We do not want to checksum files like console
+    if (ip->type == T_DEV)
+      goto zc_success;
 
+    // Initialize some checking variables
+    uint replica = REPLICA_SELF;
+    ushort rinode;
+
+zc_verify:
+    if(ichecksum(ip) == dip->checksum){
+       goto zc_success;
+    } else {
+       replica++;
+
+       // Does replica exist?
+       if (replica == REPLICA_CHILD_1)
+         rinode = ip->child1;
+       else if (replica == REPLICA_CHILD_2)
+         rinode = ip->child2;
+
+       if (!rinode)
+         goto zc_failure;
+
+       // Load byte data of rinode into my own byte data
+       //   ...
+
+       // Try to verify again...
+       goto zc_verify;
+    }
+zc_failure:
+        panic("Checksums do not match!");
+
+zc_success:
     brelse(bp);
     ip->flags |= I_VALID;
     if(ip->type == 0)

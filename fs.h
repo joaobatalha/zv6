@@ -57,3 +57,10 @@ struct dirent {
   char name[DIRSIZ];
 };
 
+// ZV6 additions:
+
+enum {
+  REPLICA_SELF,
+  REPLICA_CHILD_1,
+  REPLICA_CHILD_2
+} ditto_replica;
