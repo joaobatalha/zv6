@@ -200,31 +200,26 @@ main(int argc, char *argv[])
   ditto_inum1 = ialloc(T_DITTO);
   ditto_inum2 = ialloc(T_DITTO);
 
-  rinode(ditto_inum1, &ditto_din1);
   copy_dinode_content(&din,ditto_inum1);
-  ditto_din1.size = din.size;
+  rinode(ditto_inum1, &ditto_din1);
+  //ditto_din1.size = din.size;
   ditto_din1.checksum = din.checksum;
   ditto_din1.type = xshort(T_DITTO);
   winode(ditto_inum1, &ditto_din1);
 
-  rinode(ditto_inum2, &ditto_din2);
   copy_dinode_content(&din,ditto_inum2);
-  ditto_din2.size = din.size;
+  rinode(ditto_inum2, &ditto_din2);
+  //ditto_din2.size = din.size;
   ditto_din2.checksum = din.checksum;
   ditto_din2.type = xshort(T_DITTO);
   winode(ditto_inum2, &ditto_din2);
 
-  fprintf(stderr, "Ditto child 1 inum: %d, Ditto child 2 inum: %d \n", ditto_inum1,ditto_inum2);
 
   rinode(rootino, &din);
   din.child1 = xshort(ditto_inum1);
   din.child2 = xshort(ditto_inum2);
   winode(rootino, &din);
   
-  rinode(rootino, &din);
-  rinode(ditto_inum1, &ditto_din1);
-  fprintf(stderr, "Root directory ditto inode 1: %d, ditto inode 1: %d \n", din.child1, din.child2);
-  //fprintf(stderr, "Ditto inode directory ditto inode 1: %d, ditto inode 1: %d \n", din.child1, din.child2);
   //writes the bitmap to fs.img
   balloc(usedblocks);
 
@@ -446,7 +441,7 @@ ichecksum(struct dinode *din){
 
 void
 copy_dinode_content(struct dinode *src, uint dst){
-    unsigned int buf[512];
+    char buf[512];
     char *cbuf = (char *) buf;
     uint n = sizeof(buf);
     uint off = 0;
@@ -455,9 +450,11 @@ copy_dinode_content(struct dinode *src, uint dst){
 
     while((r = readi(src, cbuf,off,n)) > 0){
 	off += r;
-	iappend(dst, cbuf, BSIZE);
+	iappend(dst, cbuf, r);
 	memset((void *) cbuf,0,n); 
     }
+    rinode(dst, &din);
+
 }
 
 
