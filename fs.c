@@ -200,6 +200,11 @@ ialloc(uint dev, short type)
 //Compute inode checksum
 uint
 ichecksum(struct inode *ip){
+
+    // We do not want to checksum files like console
+    if (ip->type == T_DEV)
+      return 0;
+
     unsigned int buf[512];
     char* cbuf = (char*) buf;
     uint n = sizeof(buf);
@@ -228,7 +233,7 @@ iupdate(struct inode *ip)
 {
   struct buf *bp;
   struct dinode *dip;
-
+cprintf("iupdate called on inode %d.\n", ip->inum);
   bp = bread(ip->dev, IBLOCK(ip->inum));
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
@@ -322,10 +327,6 @@ ilock(struct inode *ip)
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
 
-    // We do not want to checksum files like console
-    if (ip->type == T_DEV)
-      goto zc_success;
-
     // Initialize some checking variables
     uint replica = REPLICA_SELF;
     ushort rinode;
@@ -360,8 +361,7 @@ zc_failure:
         panic("Checksums do not match!");
 
 zc_success:
-    cprintf("The checksums MATCHED!\n");
-    cprintf("The inum: %d \n", ip->inum);
+    cprintf("[inum %d] the checksums MATCHED!\n", ip->inum);
     brelse(bp);
 
     ip->flags |= I_VALID;
