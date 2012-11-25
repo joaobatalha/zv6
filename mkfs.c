@@ -211,6 +211,13 @@ main(int argc, char *argv[])
   ditto_din2.size = din.size;
   ditto_din2.checksum = din.checksum;
   winode(ditto_inum2, &ditto_din2);
+
+  fprintf(stderr, "Ditto child 1 inum: %d, Ditto child 2 inum: %d \n", ditto_inum1,ditto_inum2);
+
+  rinode(rootino, &din);
+  din.child1 = xshort(ditto_inum1);
+  din.child2 = xshort(ditto_inum2);
+  winode(rootino, &din);
   
   //writes the bitmap to fs.img
   balloc(usedblocks);
