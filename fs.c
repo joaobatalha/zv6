@@ -247,6 +247,40 @@ iupdate(struct inode *ip)
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
+
+  // Update children
+  if (ip->child1) {
+    cupdate(ip, iget(ip->dev, ip->child1));
+  }
+
+  if (ip->child2) {
+    cupdate(ip, iget(ip->dev, ip->child2));
+  }
+}
+
+// Update a child-inode
+void
+cupdate(struct inode *ip, struct inode *ic)
+{
+  if (ic->type != T_DITTO)
+    panic("trying to update a \"child\" that is not a ditto block!\n");
+
+  struct buf *bp;
+  struct dinode *dic;
+  bp = bread(ic->dev, IBLOCK(ic->inum));
+  dic = (struct dinode*) bp->data + ic->inum%IPB;
+  dic->type = ic->type;
+  dic->major = ic->major;
+  dic->minor = ic->minor;
+  dic->nlink = ic->nlink;
+  dic->size = ic->size;
+  dic->child1 = ic->child1;
+  dic->child2 = ic->child2;
+  dic->checksum = ip->checksum; // We get the checksum from the parent!
+  memmove(dic->addrs, ic->addrs, sizeof(ic->addrs));
+  log_write(bp);
+  brelse(bp);
+
 }
 
 // Find the inode with number inum on device dev
@@ -360,7 +394,8 @@ zc_failure:
         panic("Checksums do not match!");
 
 zc_success:
-    //cprintf("[inum %d] the checksums MATCHED!\n", ip->inum);
+/*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
+      ip->inum, ip->checksum, ichecksum(ip)); // */
     brelse(bp);
 
     ip->flags |= I_VALID;
@@ -557,7 +592,23 @@ writei(struct inode *ip, char *src, uint off, uint n)
     brelse(bp);
   }
 
-  //An alternative is to do ip->type != T_DEV
+  // Update ditto blocks
+  struct inode *ci;
+  if (ip->child1) {
+    ci = iget(ip->dev, ip->child1);
+    writei(ci, src, off, n);
+  }
+
+  if (ip->child2) {
+    ci = iget(ip->dev, ip->child2);
+    writei(ci, src, off, n);
+  }
+
+  // For ditto blocks, the parent iupdate call takes care of updating it
+  if (ip->type == T_DITTO)
+    return n;
+
+  // An alternative is to do ip->type != T_DEV
   if((n > 0 && off > ip->size) || ip->type == T_DIR){
     ip->size = off;
     iupdate(ip);
