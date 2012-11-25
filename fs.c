@@ -262,7 +262,7 @@ iupdate(struct inode *ip)
 void
 cupdate(struct inode *ip, struct inode *ic)
 {
-  ilock(ic);
+  ilock_ext(ic, 0);
 
   if (ic->type != T_DITTO)
     panic("trying to update a \"child\" that is not a ditto block!\n");
@@ -609,14 +609,14 @@ writei(struct inode *ip, char *src, uint off, uint n)
   struct inode *ci;
   if (ip->child1) {
     ci = iget(ip->dev, ip->child1);
-    ilock(ci);
+    ilock_ext(ci, 0);
     writei(ci, src, off, n);
     iunlock(ci);
   }
 
   if (ip->child2) {
     ci = iget(ip->dev, ip->child2);
-    ilock(ci);
+    ilock_ext(ci, 0);
     writei(ci, src, off, n);
     iunlock(ci);
   }

@@ -453,8 +453,6 @@ copy_dinode_content(struct dinode *src, uint dst){
 	iappend(dst, cbuf, r);
 	memset((void *) cbuf,0,n); 
     }
-    rinode(dst, &din);
-
 }
 
 
