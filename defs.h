@@ -39,6 +39,7 @@ struct inode*   dirlookup(struct inode*, char*, uint*);
 struct inode*   ialloc(uint, short);
 struct inode*   idup(struct inode*);
 void            iinit(void);
+void            ilock_ext(struct inode*, int);
 void            ilock(struct inode*);
 void            iput(struct inode*);
 void            iunlock(struct inode*);

@@ -262,6 +262,8 @@ iupdate(struct inode *ip)
 void
 cupdate(struct inode *ip, struct inode *ic)
 {
+  ilock(ic);
+
   if (ic->type != T_DITTO)
     panic("trying to update a \"child\" that is not a ditto block!\n");
 
@@ -281,6 +283,7 @@ cupdate(struct inode *ip, struct inode *ic)
   log_write(bp);
   brelse(bp);
 
+  iunlock(ic);
 }
 
 // Find the inode with number inum on device dev
@@ -333,7 +336,13 @@ idup(struct inode *ip)
 // Lock the given inode.
 // Reads the inode from disk if necessary.
 void
-ilock(struct inode *ip)
+ilock (struct inode *ip)
+{
+  ilock_ext(ip, 1);
+}
+
+void
+ilock_ext(struct inode *ip, int checksum)
 {
   struct buf *bp;
   struct dinode *dip;
@@ -364,6 +373,9 @@ ilock(struct inode *ip)
     uint replica = REPLICA_SELF;
     ushort rinode;
 
+    if (checksum == 0)
+      goto zc_success;
+
 zc_verify:
     if(ichecksum(ip) == dip->checksum){
        goto zc_success;
@@ -388,6 +400,7 @@ zc_verify:
 zc_failure:
         cprintf("============================\n");
         cprintf("The inum: %d \n", ip->inum);
+        cprintf("Inode Type: %d \n", ip->type);
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n");
@@ -596,12 +609,16 @@ writei(struct inode *ip, char *src, uint off, uint n)
   struct inode *ci;
   if (ip->child1) {
     ci = iget(ip->dev, ip->child1);
+    ilock(ci);
     writei(ci, src, off, n);
+    iunlock(ci);
   }
 
   if (ip->child2) {
     ci = iget(ip->dev, ip->child2);
+    ilock(ci);
     writei(ci, src, off, n);
+    iunlock(ci);
   }
 
   // For ditto blocks, the parent iupdate call takes care of updating it
