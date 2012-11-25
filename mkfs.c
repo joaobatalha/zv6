@@ -37,6 +37,7 @@ void iappend(uint inum, void *p, int n);
 uint ichecksum(struct dinode *din);
 void rblock(struct dinode *din, uint bn, char * dst);
 int readi(struct dinode *din, char * dst, uint off, uint n);
+void copy_dinode_content(struct dinode *src, uint dst);
 
 // convert to intel byte order
 ushort
@@ -107,6 +108,7 @@ main(int argc, char *argv[])
 
   memset(buf, 0, sizeof(buf));
   memmove(buf, &sb, sizeof(sb));
+  //Writes superblock to fs.img in sector 1
   wsect(1, buf);
 
   //Allocate inode for root dir
@@ -191,6 +193,26 @@ main(int argc, char *argv[])
   din.checksum = xint(checksum);
   winode(rootino, &din);
 
+  //Create ditto blocks for root directory
+  rinode(rootino, &din);
+  uint ditto_inum1, ditto_inum2;
+  struct dinode ditto_din1, ditto_din2;
+  ditto_inum1 = ialloc(T_DITTO);
+  ditto_inum2 = ialloc(T_DITTO);
+
+  rinode(ditto_inum1, &ditto_din1);
+  copy_dinode_content(&din,ditto_inum1);
+  ditto_din1.size = din.size;
+  ditto_din1.checksum = din.checksum;
+  winode(ditto_inum1, &ditto_din1);
+
+  rinode(ditto_inum2, &ditto_din2);
+  copy_dinode_content(&din,ditto_inum2);
+  ditto_din2.size = din.size;
+  ditto_din2.checksum = din.checksum;
+  winode(ditto_inum2, &ditto_din2);
+  
+  //writes the bitmap to fs.img
   balloc(usedblocks);
 
   exit(0);
@@ -209,6 +231,7 @@ wsect(uint sec, void *buf)
   }
 }
 
+//Inum to block
 uint
 i2b(uint inum)
 {
@@ -242,6 +265,7 @@ rinode(uint inum, struct dinode *ip)
   *ip = *dip;
 }
 
+//Abstraction that reads sectors from fs.img
 void
 rsect(uint sec, void *buf)
 {
@@ -255,6 +279,9 @@ rsect(uint sec, void *buf)
   }
 }
 
+/* Allocates an inode by incrementing freeinode, returns inum
+ * which started at 1(root directory)
+ * Then it creates the dinode struct and writes that to fs.img*/
 uint
 ialloc(ushort type)
 {
@@ -269,6 +296,7 @@ ialloc(ushort type)
   return inum;
 }
 
+//Writes the bitmap
 void
 balloc(int used)
 {
@@ -402,3 +430,21 @@ ichecksum(struct dinode *din){
 
     return checksum;
 }
+
+void
+copy_dinode_content(struct dinode *src, uint dst){
+    unsigned int buf[512];
+    char *cbuf = (char *) buf;
+    uint n = sizeof(buf);
+    uint off = 0;
+    uint r;
+    memset((void *) cbuf,0,n); 
+
+    while((r = readi(src, cbuf,off,n)) > 0){
+	off += r;
+	iappend(dst, cbuf, BSIZE);
+	memset((void *) cbuf,0,n); 
+    }
+}
+
+
