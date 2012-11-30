@@ -291,8 +291,8 @@ sys_open(void)
 
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
-  //cprintf("JOAO: Path is %s \n", path);
-  if(omode & O_CREATE){
+  
+	if(omode & O_CREATE){
     begin_trans();
     ip = create(path, T_FILE, 1, 0);
     commit_trans();
@@ -313,6 +313,43 @@ sys_open(void)
       fileclose(f);
     iunlockput(ip);
     return -1;
+  }
+  iunlock(ip);
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = !(omode & O_WRONLY);
+  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+  return fd;
+}
+
+//static struct inode* iget(uint dev, uint inum);
+struct inode* iget(uint dev, uint inum);
+
+int
+sys_iopen(void)
+{
+	int dev;
+	int inum;
+  int fd;
+  struct file *f;
+  struct inode *ip;
+	int omode = 0;
+
+  if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
+    return -1;
+  
+  if((ip = iget((uint)dev, inum)) == 0)
+    return -2;
+
+  ilock(ip);
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+    if(f)
+      fileclose(f);
+    iunlockput(ip);
+    return -3;
   }
   iunlock(ip);
 
