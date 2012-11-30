@@ -261,6 +261,11 @@ create(char *path, short type, short major, short minor)
   iupdate(ip);
 
   if(type == T_DIR){  // Create . and .. entries.
+    struct inode *child1, *child2;
+    child1 = ialloc(dp->dev, T_DITTO);
+    child2 = ialloc(dp->dev, T_DITTO);
+    dp->child1 = child1->inum; 
+    dp->child2 = child2->inum;
     dp->nlink++;  // for ".."
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.

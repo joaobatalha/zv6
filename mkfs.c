@@ -89,12 +89,18 @@ main(int argc, char *argv[])
     exit(1);
   }
 
+  //Creating the super block
+  //Total size of the hard disk will be 1024 sectors
   sb.size = xint(size);
-  sb.nblocks = xint(nblocks); // so whole disk is size sectors
+  // so whole disk is size sectors
+  sb.nblocks = xint(nblocks); 
+  //200 inodes
   sb.ninodes = xint(ninodes);
   sb.nlog = xint(nlog);
 
+  //Bit blocks is the space you will need for the bitmap
   bitblocks = size/(512*8) + 1;
+  //IPB -> INODES PER BLOCK
   usedblocks = ninodes / IPB + 3 + bitblocks;
   freeblock = usedblocks;
 
@@ -236,6 +242,8 @@ wsect(uint sec, void *buf)
 }
 
 //Inum to block
+//You have to add 2 for the boot block and the super block
+//After that its just simply indexing into the inode "table"
 uint
 i2b(uint inum)
 {
@@ -250,8 +258,11 @@ winode(uint inum, struct dinode *ip)
   struct dinode *dip;
 
   bn = i2b(inum);
+  //read section of the inode table into the buffer
   rsect(bn, buf);
+  //find the right dinode
   dip = ((struct dinode*)buf) + (inum % IPB);
+  //Set that dinode to the new one
   *dip = *ip;
   wsect(bn, buf);
 }
@@ -347,6 +358,7 @@ iappend(uint inum, void *xp, int n)
         usedblocks++;
       }
       // printf("read indirect block\n");
+      // The address just points to a block
       rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       if(indirect[fbn - NDIRECT] == 0){
         indirect[fbn - NDIRECT] = xint(freeblock++);
