@@ -243,6 +243,10 @@ iupdate(struct inode *ip)
   dip->child1 = ip->child1;
   dip->child2 = ip->child2;
   ip->checksum = ichecksum(ip);
+
+  /* if (ip->checksum != dip->checksum)
+    cprintf("	[I] updating checksum of inode %d from %x to %x.\n", ip->inum, dip->checksum, ip->checksum); // */
+
   dip->checksum = ip->checksum;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
@@ -278,7 +282,9 @@ cupdate(struct inode *ip, struct inode *ic)
   dic->size = ic->size;
   dic->child1 = ic->child1;
   dic->child2 = ic->child2;
-  dic->checksum = ip->checksum; // We get the checksum from the parent!
+  // cprintf("	[C] updating checksum of inode %d from %x to %x.\n", ic->inum, dic->checksum, ip->checksum);
+  ic->checksum = ip->checksum; // We get the checksum from the parent!
+  dic->checksum = ic->checksum;
   memmove(dic->addrs, ic->addrs, sizeof(ic->addrs));
   log_write(bp);
   brelse(bp);
@@ -335,13 +341,13 @@ idup(struct inode *ip)
 
 // Lock the given inode.
 // Reads the inode from disk if necessary.
-void
+int
 ilock (struct inode *ip)
 {
-  ilock_ext(ip, 1);
+  return ilock_ext(ip, 1);
 }
 
-void
+int
 ilock_ext(struct inode *ip, int checksum)
 {
   struct buf *bp;
@@ -371,7 +377,8 @@ ilock_ext(struct inode *ip, int checksum)
 
     // Initialize some checking variables
     uint replica = REPLICA_SELF;
-    ushort rinode;
+    ushort rinum;
+    struct inode *rinode;
 
     if (checksum == 0)
       goto zc_success;
@@ -384,15 +391,22 @@ zc_verify:
 
        // Does replica exist?
        if (replica == REPLICA_CHILD_1)
-         rinode = ip->child1;
+         rinum = ip->child1;
        else if (replica == REPLICA_CHILD_2)
-         rinode = ip->child2;
+         rinum = ip->child2;
 
-       if (!rinode)
+       if (!rinum)
          goto zc_failure;
 
-       // Load byte data of rinode into my own byte data
-       //   ...
+       // Obtain and grab a lock on rinode.
+       rinode = iget(rinum, ip->dev);
+
+       if (ilock(rinode) == 0) {
+         // Load byte data of rinode into my own byte data
+         irescue(ip, rinode);
+       }
+
+       iunlock(rinode);
 
        // Try to verify again...
        goto zc_verify;
@@ -404,7 +418,7 @@ zc_failure:
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n");
-        panic("Checksums do not match!");
+	return -0x666; // TODO: make a constant error value
 
 zc_success:
 /*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
@@ -415,6 +429,8 @@ zc_success:
     if(ip->type == 0)
       panic("ilock: no type");
   }
+
+  return 0;
 }
 
 // Unlock the given inode.
@@ -462,6 +478,28 @@ iunlockput(struct inode *ip)
 {
   iunlock(ip);
   iput(ip);
+}
+
+// Copy size, checksum, and inode data from replica inode
+// to a parent
+void
+irescue(struct inode *ip, struct inode *rinode)
+{
+  char buf[1024];
+  uint n = sizeof(buf);
+  memset((void*) buf, 0, n);
+  uint off = 0;
+  uint r;
+
+  ip->checksum = rinode->checksum;
+  ip->size = rinode->size;
+
+  while ((r = readi(rinode, buf, off, n)) > 0) {
+    writei_ext(ip, buf, off, r, 1);
+    off += r;
+    memset((void *) buf, 0, n);
+  }
+
 }
 
 //PAGEBREAK!
@@ -584,7 +622,15 @@ readi(struct inode *ip, char *dst, uint off, uint n)
 // PAGEBREAK!
 // Write data to inode.
 int
-writei(struct inode *ip, char *src, uint off, uint n)
+writei (struct inode *ip, char *src, uint off, uint n)
+{
+  return writei_ext(ip, src, off, n, 0);
+}
+
+// Extensible version of writei which, when the skip flag is set,
+//   overrides writing to the children of an inode.
+int
+writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
 {
   uint tot, m;
   struct buf *bp;
@@ -610,18 +656,21 @@ writei(struct inode *ip, char *src, uint off, uint n)
 
   // Update ditto blocks
   struct inode *ci;
-  if (ip->child1) {
-    ci = iget(ip->dev, ip->child1);
-    ilock_ext(ci, 0);
-    writei(ci, src, off, n);
-    iunlock(ci);
-  }
 
-  if (ip->child2) {
-    ci = iget(ip->dev, ip->child2);
-    ilock_ext(ci, 0);
-    writei(ci, src, off, n);
-    iunlock(ci);
+  if (skip == 0) {
+    if (ip->child1) {
+      ci = iget(ip->dev, ip->child1);
+      ilock_ext(ci, 0);
+      writei(ci, src, off, n);
+      iunlock(ci);
+    }
+
+    if (ip->child2) {
+      ci = iget(ip->dev, ip->child2);
+      ilock_ext(ci, 0);
+      writei(ci, src, off, n);
+      iunlock(ci);
+    }
   }
 
   // For ditto blocks, the parent iupdate call takes care of updating it
@@ -629,10 +678,11 @@ writei(struct inode *ip, char *src, uint off, uint n)
     return n;
 
   // An alternative is to do ip->type != T_DEV
-  if((n > 0 && off > ip->size) || ip->type == T_DIR){
+  if((n > 0 && off > ip->size) || ip->type != T_DEV){
     ip->size = off;
     iupdate(ip);
   }
+
   return n;
 }
 

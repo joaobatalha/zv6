@@ -25,7 +25,7 @@ pinode(char *devnum, char *inum)
 		return;
 	}
 	
-	printf(1, "%d  %d  %d  %d\n", iint, st.child1, st.child2, st.checksum);
+	printf(1, "%d  %d  %d  %x\n", iint, st.child1, st.child2, st.checksum);
 }
 
 int
