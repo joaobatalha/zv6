@@ -843,3 +843,30 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+
+int 
+distance_to_root(char *path){
+    char name[DIRSIZ];
+    struct inode *dp, *ip; 
+    uint inum1,inum2;
+    uint off;
+    dp = nameiparent(path, name);
+    ilock(dp); 
+    int counter = 1;
+    while((ip = dirlookup(dp,"..", &off) ) != 0){
+	inum1 = dp->inum;
+	iunlockput(dp);
+	dp = ip;
+	ilock(dp);
+	inum2 = dp->inum;
+	//If this is the root. 
+	if(inum1 == inum2){
+	    iunlockput(dp);
+	    break;
+	}
+	counter++;
+	off = 0;
+    }
+    return counter;
+}

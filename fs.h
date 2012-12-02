@@ -59,6 +59,9 @@ struct dirent {
 
 // ZV6 additions:
 
+#define DITTO_LOWER 3
+#define DITTO_HIGHER 6
+
 enum {
   REPLICA_SELF,
   REPLICA_CHILD_1,

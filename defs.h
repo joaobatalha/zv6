@@ -54,6 +54,7 @@ int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int		writei_ext(struct inode*, char*, uint, uint, uint);
 int             writei(struct inode*, char*, uint, uint);
+int		distance_to_root(char * path);
 
 // ide.c
 void            ideinit(void);
