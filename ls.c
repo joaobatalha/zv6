@@ -13,7 +13,6 @@ fmtname(char *path)
   for(p=path+strlen(path); p >= path && *p != '/'; p--)
     ;
   p++;
-  
   // Return blank-padded name.
   if(strlen(p) >= DIRSIZ)
     return p;
@@ -43,7 +42,7 @@ ls(char *path)
   
   switch(st.type){
   case T_FILE:
-    printf(1, "%s %d %d %d\n", fmtname(path), st.type, st.ino, st.size);
+    printf(1, "%s %d %d %d %d %d %d\n", fmtname(path), st.type, st.ino, st.size, st.child1, st.child2, st.checksum);
     break;
   
   case T_DIR:
@@ -63,7 +62,7 @@ ls(char *path)
         printf(1, "ls: cannot stat %s\n", buf);
         continue;
       }
-      printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      printf(1, "%s %d %d %d %d %d %d\n", fmtname(buf), st.type, st.ino, st.size, st.child1, st.child2, st.checksum);
     }
     break;
   }

@@ -151,7 +151,7 @@ main(int argc, char *argv[])
     strncpy(de.name, argv[i], DIRSIZ);
     iappend(rootino, &de, sizeof(de));
     checksum = 0;
-    fprintf(stderr, "Name of file: %s \n", argv[i]);
+    //fprintf(stderr, "Name of file: %s \n", argv[i]);
     int counter2 = 0;
     char * cbuf = (char * )buf;
     memset((void *) cbuf,0,sizeof(buf)); 
@@ -167,8 +167,8 @@ main(int argc, char *argv[])
       }
       iappend(inum, buf, cc);
     }
-    fprintf(stderr, "Size of the file: %s is %d bytes \n",argv[i],counter2);
-    fprintf(stderr, "Checksum from fd: %x \n", checksum);
+    //fprintf(stderr, "Size of the file: %s is %d bytes \n",argv[i],counter2);
+    //fprintf(stderr, "Checksum from fd: %x \n", checksum);
     //Read Inode we just wrote to
     //update its checksum
     rinode(inum, &din2);
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
     readi(&din2,(char*)temp_buf,0,BSIZE);
     unsigned int checksum2 = 0;
     checksum2 = ichecksum(&din2);
-    fprintf(stderr,"INODE: %d Checksum computed through ichecksum: %x \n", inum, checksum2);
+    //fprintf(stderr,"INODE: %d Checksum computed through ichecksum: %x \n", inum, checksum2);
     din2.checksum = xint(checksum2);
     winode(inum, &din2);
 
@@ -202,16 +202,12 @@ main(int argc, char *argv[])
 
   copy_dinode_content(&din,ditto_inum1);
   rinode(ditto_inum1, &ditto_din1);
-  //ditto_din1.size = din.size;
   ditto_din1.checksum = din.checksum;
-  ditto_din1.type = xshort(T_DITTO);
   winode(ditto_inum1, &ditto_din1);
 
   copy_dinode_content(&din,ditto_inum2);
   rinode(ditto_inum2, &ditto_din2);
-  //ditto_din2.size = din.size;
   ditto_din2.checksum = din.checksum;
-  ditto_din2.type = xshort(T_DITTO);
   winode(ditto_inum2, &ditto_din2);
 
 
