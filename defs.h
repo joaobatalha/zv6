@@ -45,12 +45,14 @@ void            iput(struct inode*);
 void            iunlock(struct inode*);
 void            iunlockput(struct inode*);
 void            iupdate(struct inode*);
+void		irescue(struct inode*, struct inode*);
 void            cupdate(struct inode*, struct inode*);
 int             namecmp(const char*, const char*);
 struct inode*   namei(char*);
 struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
+int		writei_ext(struct inode*, char*, uint, uint, uint);
 int             writei(struct inode*, char*, uint, uint);
 
 // ide.c

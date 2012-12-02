@@ -403,8 +403,7 @@ zc_verify:
 
        if (ilock(rinode) == 0) {
          // Load byte data of rinode into my own byte data
-         ip->checksum = rinode->checksum;
-         //
+         irescue(ip, rinode);
        }
 
        iunlock(rinode);
@@ -479,6 +478,28 @@ iunlockput(struct inode *ip)
 {
   iunlock(ip);
   iput(ip);
+}
+
+// Copy size, checksum, and inode data from replica inode
+// to a parent
+void
+irescue(struct inode *ip, struct inode *rinode)
+{
+  char buf[1024];
+  uint n = sizeof(buf);
+  memset((void*) buf, 0, n);
+  uint off = 0;
+  uint r;
+
+  ip->checksum = rinode->checksum;
+  ip->size = rinode->size;
+
+  while ((r = readi(rinode, buf, off, n)) > 0) {
+    writei_ext(ip, buf, off, r, 1);
+    off += r;
+    memset((void *) buf, 0, n);
+  }
+
 }
 
 //PAGEBREAK!
@@ -601,7 +622,15 @@ readi(struct inode *ip, char *dst, uint off, uint n)
 // PAGEBREAK!
 // Write data to inode.
 int
-writei(struct inode *ip, char *src, uint off, uint n)
+writei (struct inode *ip, char *src, uint off, uint n)
+{
+  return writei_ext(ip, src, off, n, 0);
+}
+
+// Extensible version of writei which, when the skip flag is set,
+//   overrides writing to the children of an inode.
+int
+writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
 {
   uint tot, m;
   struct buf *bp;
@@ -628,18 +657,20 @@ writei(struct inode *ip, char *src, uint off, uint n)
   // Update ditto blocks
   struct inode *ci;
 
-  if (ip->child1) {
-    ci = iget(ip->dev, ip->child1);
-    ilock_ext(ci, 0);
-    writei(ci, src, off, n);
-    iunlock(ci);
-  }
+  if (skip == 0) {
+    if (ip->child1) {
+      ci = iget(ip->dev, ip->child1);
+      ilock_ext(ci, 0);
+      writei(ci, src, off, n);
+      iunlock(ci);
+    }
 
-  if (ip->child2) {
-    ci = iget(ip->dev, ip->child2);
-    ilock_ext(ci, 0);
-    writei(ci, src, off, n);
-    iunlock(ci);
+    if (ip->child2) {
+      ci = iget(ip->dev, ip->child2);
+      ilock_ext(ci, 0);
+      writei(ci, src, off, n);
+      iunlock(ci);
+    }
   }
 
   // For ditto blocks, the parent iupdate call takes care of updating it
