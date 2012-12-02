@@ -243,6 +243,10 @@ iupdate(struct inode *ip)
   dip->child1 = ip->child1;
   dip->child2 = ip->child2;
   ip->checksum = ichecksum(ip);
+
+  /* if (ip->checksum != dip->checksum)
+    cprintf("	[I] updating checksum of inode %d from %x to %x.\n", ip->inum, dip->checksum, ip->checksum); // */
+
   dip->checksum = ip->checksum;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
@@ -278,7 +282,9 @@ cupdate(struct inode *ip, struct inode *ic)
   dic->size = ic->size;
   dic->child1 = ic->child1;
   dic->child2 = ic->child2;
-  dic->checksum = ip->checksum; // We get the checksum from the parent!
+  // cprintf("	[C] updating checksum of inode %d from %x to %x.\n", ic->inum, dic->checksum, ip->checksum);
+  ic->checksum = ip->checksum; // We get the checksum from the parent!
+  dic->checksum = ic->checksum;
   memmove(dic->addrs, ic->addrs, sizeof(ic->addrs));
   log_write(bp);
   brelse(bp);
@@ -621,6 +627,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
 
   // Update ditto blocks
   struct inode *ci;
+
   if (ip->child1) {
     ci = iget(ip->dev, ip->child1);
     ilock_ext(ci, 0);
@@ -640,10 +647,11 @@ writei(struct inode *ip, char *src, uint off, uint n)
     return n;
 
   // An alternative is to do ip->type != T_DEV
-  if((n > 0 && off > ip->size) || ip->type == T_DIR){
+  if((n > 0 && off > ip->size) || ip->type != T_DEV){
     ip->size = off;
     iupdate(ip);
   }
+
   return n;
 }
 
