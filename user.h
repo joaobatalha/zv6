@@ -23,6 +23,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+uint ichecksum(int, int);
 
 
 // ulib.c

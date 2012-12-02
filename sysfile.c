@@ -356,6 +356,23 @@ sys_iopen(void)
   return fd;
 }
 
+uint ichecksum(struct inode *ip);
+
+uint sys_ichecksum(void)
+{
+	int dev;
+	int inum;
+  struct inode *ip;
+
+	if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
+    return -1;
+  
+  if((ip = iget((uint)dev, inum)) == 0)
+    return -2;
+
+	return ichecksum(ip);
+}
+
 int
 sys_mkdir(void)
 {
