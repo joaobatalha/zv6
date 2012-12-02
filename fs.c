@@ -335,13 +335,13 @@ idup(struct inode *ip)
 
 // Lock the given inode.
 // Reads the inode from disk if necessary.
-void
+int
 ilock (struct inode *ip)
 {
-  ilock_ext(ip, 1);
+  return ilock_ext(ip, 1);
 }
 
-void
+int
 ilock_ext(struct inode *ip, int checksum)
 {
   struct buf *bp;
@@ -371,7 +371,8 @@ ilock_ext(struct inode *ip, int checksum)
 
     // Initialize some checking variables
     uint replica = REPLICA_SELF;
-    ushort rinode;
+    ushort rinum;
+    struct inode *rinode;
 
     if (checksum == 0)
       goto zc_success;
@@ -384,15 +385,23 @@ zc_verify:
 
        // Does replica exist?
        if (replica == REPLICA_CHILD_1)
-         rinode = ip->child1;
+         rinum = ip->child1;
        else if (replica == REPLICA_CHILD_2)
-         rinode = ip->child2;
+         rinum = ip->child2;
 
-       if (!rinode)
+       if (!rinum)
          goto zc_failure;
 
-       // Load byte data of rinode into my own byte data
-       //   ...
+       // Obtain and grab a lock on rinode.
+       rinode = iget(rinum, ip->dev);
+
+       if (ilock(rinode) == 0) {
+         // Load byte data of rinode into my own byte data
+         ip->checksum = rinode->checksum;
+         //
+       }
+
+       iunlock(rinode);
 
        // Try to verify again...
        goto zc_verify;
@@ -404,7 +413,7 @@ zc_failure:
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n");
-        panic("Checksums do not match!");
+	return -0x666; // TODO: make a constant error value
 
 zc_success:
 /*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
@@ -415,6 +424,8 @@ zc_success:
     if(ip->type == 0)
       panic("ilock: no type");
   }
+
+  return 0;
 }
 
 // Unlock the given inode.
