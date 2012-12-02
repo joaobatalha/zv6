@@ -258,6 +258,13 @@ create(char *path, short type, short major, short minor)
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+  if(type == T_DIR){//Create DITTO inodes
+    struct inode *child1, *child2;
+    child1 = ialloc(dp->dev, T_DITTO);
+    child2 = ialloc(dp->dev, T_DITTO);
+    ip->child1 = child1->inum; 
+    ip->child2 = child2->inum;
+  }
   iupdate(ip);
 
   if(type == T_DIR){  // Create . and .. entries.
