@@ -13,14 +13,14 @@ pinode(char *devnum, char *inum)
 	iint = atoi(inum);
 
 	if ((fd = iopen(dev, iint)) < 0) {
-		printf(2, "pinode: cannont open inode %d on dev %d\n", iint, dev);
+		printf(2, "pinode: cannot open inode %d on dev %d\n", iint, dev);
 		close(fd);
 		return;
 	}
 
 
 	if (fstat(fd, &st) < 0) {
-		printf(2, "pinode: cannont stat inode %d on dev %d (fd=%d)\n", iint, dev, fd);
+		printf(2, "pinode: cannot stat inode %d on dev %d (fd=%d)\n", iint, dev, fd);
 		close(fd);
 		return;
 	}

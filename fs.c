@@ -231,8 +231,15 @@ ichecksum(struct inode *ip){
 void
 iupdate(struct inode *ip)
 {
+  iupdate_ext(ip, 0);
+}
+
+void
+iupdate_ext(struct inode *ip, uint skip)
+{
   struct buf *bp;
   struct dinode *dip;
+
   bp = bread(ip->dev, IBLOCK(ip->inum));
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
@@ -243,7 +250,6 @@ iupdate(struct inode *ip)
   dip->child1 = ip->child1;
   dip->child2 = ip->child2;
   ip->checksum = ichecksum(ip);
-
   /* if (ip->checksum != dip->checksum)
     cprintf("	[I] updating checksum of inode %d from %x to %x.\n", ip->inum, dip->checksum, ip->checksum); // */
 
@@ -253,13 +259,11 @@ iupdate(struct inode *ip)
   brelse(bp);
 
   // Update children
-  if (ip->child1) {
-    cupdate(ip, iget(ip->dev, ip->child1));
+  if (skip == 0) {
+    if (ip->child1) cupdate(ip, iget(ip->dev, ip->child1));
+    if (ip->child2) cupdate(ip, iget(ip->dev, ip->child2));
   }
 
-  if (ip->child2) {
-    cupdate(ip, iget(ip->dev, ip->child2));
-  }
 }
 
 // Update a child-inode
@@ -273,6 +277,7 @@ cupdate(struct inode *ip, struct inode *ic)
 
   struct buf *bp;
   struct dinode *dic;
+
   bp = bread(ic->dev, IBLOCK(ic->inum));
   dic = (struct dinode*) bp->data + ic->inum%IPB;
   dic->type = ic->type;
@@ -357,6 +362,7 @@ ilock_ext(struct inode *ip, int checksum)
     panic("ilock");
 
   acquire(&icache.lock);
+
   while(ip->flags & I_BUSY)
     sleep(ip, &icache.lock);
   ip->flags |= I_BUSY;
@@ -374,6 +380,7 @@ ilock_ext(struct inode *ip, int checksum)
     ip->child2 = dip->child2;
     ip->checksum = dip->checksum;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
+    brelse(bp);
 
     // Initialize some checking variables
     uint replica = REPLICA_SELF;
@@ -384,7 +391,7 @@ ilock_ext(struct inode *ip, int checksum)
       goto zc_success;
 
 zc_verify:
-    if(ichecksum(ip) == dip->checksum){
+    if(ichecksum(ip) == ip->checksum){
        goto zc_success;
     } else {
        replica++;
@@ -399,7 +406,7 @@ zc_verify:
          goto zc_failure;
 
        // Obtain and grab a lock on rinode.
-       rinode = iget(rinum, ip->dev);
+       rinode = iget(ip->dev, rinum);
 
        if (ilock(rinode) == 0) {
          // Load byte data of rinode into my own byte data
@@ -423,7 +430,6 @@ zc_failure:
 zc_success:
 /*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
       ip->inum, ip->checksum, ichecksum(ip)); // */
-    brelse(bp);
 
     ip->flags |= I_VALID;
     if(ip->type == 0)
@@ -491,6 +497,7 @@ irescue(struct inode *ip, struct inode *rinode)
   uint off = 0;
   uint r;
 
+  begin_trans();
   ip->checksum = rinode->checksum;
   ip->size = rinode->size;
 
@@ -499,6 +506,7 @@ irescue(struct inode *ip, struct inode *rinode)
     off += r;
     memset((void *) buf, 0, n);
   }
+  commit_trans();
 
 }
 
@@ -678,10 +686,11 @@ writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
     return n;
 
   // An alternative is to do ip->type != T_DEV
-  if((n > 0 && off > ip->size) || ip->type != T_DEV){
+  if (n > 0 && off > ip->size)
     ip->size = off;
-    iupdate(ip);
-  }
+
+  if (ip->type != T_DEV)
+    iupdate_ext(ip, skip);
 
   return n;
 }
