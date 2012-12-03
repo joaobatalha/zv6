@@ -45,6 +45,7 @@ void            iput(struct inode*);
 void            iunlock(struct inode*);
 void            iunlockput(struct inode*);
 void            iupdate(struct inode*);
+void		iupdate_ext(struct inode*, uint);
 void		irescue(struct inode*, struct inode*);
 void            cupdate(struct inode*, struct inode*);
 int             namecmp(const char*, const char*);
