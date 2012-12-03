@@ -38,8 +38,6 @@ main(int argc, char *argv[])
 		exit();
 	}
 
-	printf(1, "%s\n", argv[0]);
-
 	for (i = 1; i < argc; i+=2)
 		pinode(argv[i], argv[i+1]);
 

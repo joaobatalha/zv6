@@ -21,11 +21,10 @@ argfd(int n, int *pfd, struct file **pf)
 {
   int fd;
   struct file *f;
-
   if(argint(n, &fd) < 0)
     return -1;
   if(fd < 0 || fd >= NOFILE || (f=proc->ofile[fd]) == 0)
-    return -1;
+    return -2;
   if(pfd)
     *pfd = fd;
   if(pf)
@@ -237,9 +236,11 @@ create(char *path, short type, short major, short minor)
   uint off;
   struct inode *ip, *dp;
   char name[DIRSIZ];
+  int dtr;//distance to root directory
 
   if((dp = nameiparent(path, name)) == 0)
     return 0;
+  dtr = distance_to_root(path);
   ilock(dp);
 
   if((ip = dirlookup(dp, name, &off)) != 0){
@@ -258,12 +259,20 @@ create(char *path, short type, short major, short minor)
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
-  if(type == T_DIR){//Create DITTO inodes
+  if(type == T_DIR && dtr < DITTO_HIGHER){//Create DITTO inodes
     struct inode *child1, *child2;
-    child1 = ialloc(dp->dev, T_DITTO);
-    child2 = ialloc(dp->dev, T_DITTO);
-    ip->child1 = child1->inum; 
-    ip->child2 = child2->inum;
+    if(dtr < DITTO_LOWER){//close to root, create 2 dittos
+	child1 = ialloc(dp->dev, T_DITTO);
+	child2 = ialloc(dp->dev, T_DITTO);
+	ip->child1 = child1->inum; 
+	ip->child2 = child2->inum;
+    }
+    else{
+	if(dtr < DITTO_HIGHER){//Close enough to root, create 1 ditto
+	    child1 = ialloc(dp->dev, T_DITTO);
+	    ip->child1 = child1->inum; 
+	}
+    }
   }
   iupdate(ip);
 
