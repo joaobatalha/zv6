@@ -12,7 +12,7 @@ pchecksum(char *devnum, char *inum)
 	iint = atoi(inum);
 
 	if ((checksum = ichecksum(dev, iint)) < 0) {
-		printf(2, "checksum: cannont open inode %d on dev %d\n", iint, dev);
+		printf(2, "checksum: cannont open inode %d on dev %d (err %d)\n", iint, dev, checksum);
 		return;
 	}
 	
@@ -28,8 +28,6 @@ main(int argc, char *argv[])
 		printf(1, "Usage: checksum ([DEV] [FILE/DIR])+\n");
 		exit();
 	}
-
-	printf(1, "%s\n", argv[0]);
 
 	for (i = 1; i < argc; i+=2)
 		pchecksum(argv[i], argv[i+1]);

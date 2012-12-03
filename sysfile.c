@@ -21,11 +21,10 @@ argfd(int n, int *pfd, struct file **pf)
 {
   int fd;
   struct file *f;
-
   if(argint(n, &fd) < 0)
     return -1;
   if(fd < 0 || fd >= NOFILE || (f=proc->ofile[fd]) == 0)
-    return -1;
+    return -2;
   if(pfd)
     *pfd = fd;
   if(pf)
