@@ -255,22 +255,15 @@ iupdate_ext(struct inode *ip, uint skip)
 
   dip->checksum = ip->checksum;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
-cprintf("about to log_write\n");
   log_write(bp);
-cprintf("about to brelse\n");
   brelse(bp);
-cprintf("done brelse\n");
 
   // Update children
   if (skip == 0) {
-    if (ip->child1) {
-      cupdate(ip, iget(ip->dev, ip->child1));
-    }
-
-    if (ip->child2) {
-      cupdate(ip, iget(ip->dev, ip->child2));
-    }
+    if (ip->child1) cupdate(ip, iget(ip->dev, ip->child1));
+    if (ip->child2) cupdate(ip, iget(ip->dev, ip->child2));
   }
+
 }
 
 // Update a child-inode
