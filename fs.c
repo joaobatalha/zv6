@@ -399,7 +399,7 @@ zc_verify:
          goto zc_failure;
 
        // Obtain and grab a lock on rinode.
-       rinode = iget(rinum, ip->dev);
+       rinode = iget(ip->dev, rinum);
 
        if (ilock(rinode) == 0) {
          // Load byte data of rinode into my own byte data
@@ -491,6 +491,7 @@ irescue(struct inode *ip, struct inode *rinode)
   uint off = 0;
   uint r;
 
+  begin_trans();
   ip->checksum = rinode->checksum;
   ip->size = rinode->size;
 
@@ -499,6 +500,7 @@ irescue(struct inode *ip, struct inode *rinode)
     off += r;
     memset((void *) buf, 0, n);
   }
+  commit_trans();
 
 }
 
