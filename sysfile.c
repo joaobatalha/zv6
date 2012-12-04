@@ -374,19 +374,46 @@ sys_iopen(void)
 
 uint ichecksum(struct inode *ip);
 
-uint sys_ichecksum(void)
+uint
+sys_ichecksum(void)
 {
 	int dev;
 	int inum;
+  int fd;
+	uint cs;
+  struct file *f;
   struct inode *ip;
+	int omode = 0;
 
-	if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
+  if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
     return -1;
   
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-	return ichecksum(ip);
+  ilock(ip);
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+    if(f)
+      fileclose(f);
+    iunlockput(ip);
+    return -3;
+  }
+
+	cs = ichecksum(ip);
+  iunlock(ip);
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = !(omode & O_WRONLY);
+  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+
+	// close file
+  proc->ofile[fd] = 0;
+  fileclose(f);
+
+  return cs;
 }
 
 int
