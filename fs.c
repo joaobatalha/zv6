@@ -491,7 +491,8 @@ iunlockput(struct inode *ip)
 void
 irescue(struct inode *ip, struct inode *rinode)
 {
-  char buf[1024];
+  char buf[512];
+
   uint n = sizeof(buf);
   memset((void*) buf, 0, n);
   uint off = 0;
