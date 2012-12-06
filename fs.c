@@ -427,7 +427,7 @@ zc_failure:
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n");
-	return -0x666; // TODO: make a constant error value
+	return -0x666;
 
 zc_success:
 /*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
@@ -493,6 +493,39 @@ iunlockput(struct inode *ip)
 void
 irescue(struct inode *ip, struct inode *rinode)
 {
+  begin_trans();
+  iduplicate(rinode, ip);
+  commit_trans();
+}
+
+// Copy size, checksum, and inode data from a parent
+// inode to its replicas. MUST BE SURROUNDED BY TRANSACTION!
+void
+ipropagate(struct inode *ip)
+{
+  struct inode *ic;
+
+  if (ip->child1) {
+    ic = iget(ip->dev, ip->child1);
+    ilock_ext(ic, 0);
+    iduplicate(ip, ic);
+    iunlock(ic);
+  }
+
+  if (ip->child2) {
+    ic = iget(ip->dev, ip->child2);
+    ilock_ext(ic, 0);
+    iduplicate(ip, ic);
+    iunlock(ic);
+  }
+
+}
+
+// Copy size, checksum, and inode data from a source inode
+// into a destination inode. MUST BE SURROUNDED BY A TRANSACTION!
+void
+iduplicate(struct inode *src, struct inode *dst)
+{
   char buf[512];
 
   uint n = sizeof(buf);
@@ -500,16 +533,14 @@ irescue(struct inode *ip, struct inode *rinode)
   uint off = 0;
   uint r;
 
-  begin_trans();
-  ip->checksum = rinode->checksum;
-  ip->size = rinode->size;
+  dst->checksum = src->checksum;
+  dst->size = src->size;
 
-  while ((r = readi(rinode, buf, off, n)) > 0) {
-    writei_ext(ip, buf, off, r, 1);
+  while ((r = readi(src, buf, off, n)) > 0) {
+    writei_ext(dst, buf, off, r, 1);
     off += r;
     memset((void *) buf, 0, n);
   }
-  commit_trans();
 
 }
 
