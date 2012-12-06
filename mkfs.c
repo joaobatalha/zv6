@@ -14,7 +14,7 @@
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-int nblocks = 985;
+int nblocks = 975;
 int nlog = LOGSIZE;
 int ninodes = 200;
 int size = 1024;
@@ -209,11 +209,13 @@ main(int argc, char *argv[])
   copy_dinode_content(&din,ditto_inum1);
   rinode(ditto_inum1, &ditto_din1);
   ditto_din1.checksum = din.checksum;
+  ditto_din1.size = din.size;
   winode(ditto_inum1, &ditto_din1);
 
   copy_dinode_content(&din,ditto_inum2);
   rinode(ditto_inum2, &ditto_din2);
   ditto_din2.checksum = din.checksum;
+  ditto_din2.size = din.size;
   winode(ditto_inum2, &ditto_din2);
 
 
@@ -222,6 +224,7 @@ main(int argc, char *argv[])
   din.child2 = xshort(ditto_inum2);
   winode(rootino, &din);
   
+  fprintf(stderr, "=======> JOAO: root inode checksum %x \n",xint(din.checksum));
   //writes the bitmap to fs.img
   balloc(usedblocks);
 
