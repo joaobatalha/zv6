@@ -171,6 +171,7 @@ UPROGS=\
 	_zombie\
 	_pinode\
 	_pchecksum\
+	_pcat\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
