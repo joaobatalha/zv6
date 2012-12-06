@@ -493,9 +493,11 @@ iunlockput(struct inode *ip)
 void
 irescue(struct inode *ip, struct inode *rinode)
 {
-  begin_trans();
+  int r = is_log_busy();
+
+  if (r == 0) begin_trans();
   iduplicate(rinode, ip);
-  commit_trans();
+  if (r == 0) commit_trans();
 }
 
 // Copy size, checksum, and inode data from a parent

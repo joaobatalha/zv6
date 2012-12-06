@@ -91,6 +91,7 @@ void            initlog(void);
 void            log_write(struct buf*);
 void            begin_trans();
 void            commit_trans();
+int		is_log_busy();
 
 // mp.c
 extern int      ismp;
