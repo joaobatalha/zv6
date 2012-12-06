@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <time.h>
 
 #define stat xv6_stat  // avoid clash with host struct stat
 #include "types.h"
@@ -28,7 +29,8 @@ void winode(uint, struct dinode*);
 void rinode(uint inum, struct dinode *ip);
 void rsect(uint sec, void *buf);
 //void iappend(uint inum, void *p, int n);
-void icorrupt(uint inum, void *p, int n);
+int icorrupt(uint inum, void *p, int n, int pct);
+int flip_bits(int pct, char * c, uint n);
 uint ichecksum(struct dinode *din);
 void rblock(struct dinode *din, uint bn, char * dst);
 int readi(struct dinode *din, char * dst, uint off, uint n);
@@ -62,7 +64,8 @@ main(int argc, char *argv[])
 {
   uint inum;
   char  corrupt[512];
-  int i;
+  int i,pct;
+  int counter = 0;
   for(i = 0; i < sizeof(corrupt); i++){
     corrupt[i] = 0xFF; 
   }
@@ -74,14 +77,21 @@ main(int argc, char *argv[])
   }
 
   inum = atoi(argv[2]);
+  pct  = atoi(argv[3]);
 
   fsfd = open(argv[1], O_RDWR, 0666);
   if(fsfd < 0){
     perror(argv[1]);
     exit(1);
   }
-
-  icorrupt(inum,zp,sizeof(corrupt));
+  srand(time(NULL));
+  struct dinode din;
+  rinode(inum, &din);
+  uint size = xint(din.size);
+  fprintf(stdout, "Size of file:  %d bits \n", size * 8);
+  counter = icorrupt(inum,zp,size, pct);
+  fprintf(stdout, "Corrupting 1 in every %d bits\n",pct);
+  fprintf(stdout, "Corrupted %d bits \n", counter);
   fprintf(stdout, "Corrupted file with inode %d \n", inum);
   exit(0);
 }
@@ -204,8 +214,8 @@ rsect(uint sec, void *buf)
 //  winode(inum, &din);
 //}
 
-void
-icorrupt(uint inum, void *xp, int n)
+int
+icorrupt(uint inum, void *xp, int n, int pct)
 {
   char *p = (char*)xp;
   uint fbn, off, n1;
@@ -213,6 +223,8 @@ icorrupt(uint inum, void *xp, int n)
   char buf[512];
   uint indirect[NINDIRECT];
   uint x;
+  char * c;
+  int counter = 0;
 
   rinode(inum, &din);
 
@@ -230,13 +242,41 @@ icorrupt(uint inum, void *xp, int n)
     }
     n1 = min(n, (fbn + 1) * 512 - off);
     rsect(x, buf);
-    bcopy(p, buf + off - (fbn * 512), n1);
+//    bcopy(p, buf + off - (fbn * 512), n1);
+    c = (char *) &buf;
+    counter += flip_bits(pct, c, n1);
     wsect(x, buf);
     n -= n1;
     off += n1;
     p += n1;
   }
   winode(inum, &din);
+  return counter;
+}
+
+
+int flip(int p){
+    int i = rand() %p;
+    if(i == 0){
+	return 1;
+    }
+    else{
+	return 0;
+    }
+}
+int
+flip_bits(int pct, char * c, uint n){
+    uint i,s;
+    char bit = 0x01;
+    int counter = 0;
+    for(i = 0; i < n; i++){
+	for(s = 0; s < 8; s++){
+	    if(flip(pct))
+		counter++;
+		*(c + i) ^= bit << s;
+	}
+    }
+    return counter;
 }
 
 int 
