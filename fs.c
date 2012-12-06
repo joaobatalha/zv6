@@ -284,10 +284,10 @@ cupdate(struct inode *ip, struct inode *ic)
   dic->major = ic->major;
   dic->minor = ic->minor;
   dic->nlink = ic->nlink;
+  ic->size = ip->size; // We get the size from the parent!
   dic->size = ic->size;
   dic->child1 = ic->child1;
   dic->child2 = ic->child2;
-  // cprintf("	[C] updating checksum of inode %d from %x to %x.\n", ic->inum, dic->checksum, ip->checksum);
   ic->checksum = ip->checksum; // We get the checksum from the parent!
   dic->checksum = ic->checksum;
   memmove(dic->addrs, ic->addrs, sizeof(ic->addrs));
@@ -365,12 +365,13 @@ ilock_ext(struct inode *ip, int checksum)
 
   while(ip->flags & I_BUSY)
     sleep(ip, &icache.lock);
+
   ip->flags |= I_BUSY;
   release(&icache.lock);
 
   if(!(ip->flags & I_VALID)){
     bp = bread(ip->dev, IBLOCK(ip->inum));
-    dip = (struct dinode*)bp->data + ip->inum%IPB;
+   dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;
@@ -392,6 +393,7 @@ ilock_ext(struct inode *ip, int checksum)
 
 zc_verify:
     if(ichecksum(ip) == ip->checksum){
+
        goto zc_success;
     } else {
        replica++;
@@ -643,13 +645,15 @@ writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
 {
   uint tot, m;
   struct buf *bp;
+  char *_src = src;
+  uint _off = off;
 
   if(ip->type == T_DEV){
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
       return -1;
     return devsw[ip->major].write(ip, src, n);
   }
-
+/*cprintf("[%d] WRITE BEGINS WITH SRC ADDR = %p\n     FIRST CHAR = %s\n     off = %d\n     n = %d\n     skip = %d.\n", ip->inum, src, *src, off, n, skip);*/
   if(off > ip->size || off + n < off)
     return -1;
   if(off + n > MAXFILE*BSIZE)
@@ -670,14 +674,14 @@ writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
     if (ip->child1) {
       ci = iget(ip->dev, ip->child1);
       ilock_ext(ci, 0);
-      writei(ci, src, off, n);
+      writei(ci, _src, _off, n);
       iunlock(ci);
     }
 
     if (ip->child2) {
       ci = iget(ip->dev, ip->child2);
       ilock_ext(ci, 0);
-      writei(ci, src, off, n);
+      writei(ci, _src, _off, n);
       iunlock(ci);
     }
   }
