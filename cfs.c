@@ -271,9 +271,10 @@ flip_bits(int pct, char * c, uint n){
     int counter = 0;
     for(i = 0; i < n; i++){
 	for(s = 0; s < 8; s++){
-	    if(flip(pct))
+	    if(flip(pct)){
 		counter++;
 		*(c + i) ^= bit << s;
+	    }
 	}
     }
     return counter;

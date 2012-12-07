@@ -132,6 +132,12 @@ begin_trans(void)
   release(&log.lock);
 }
 
+int
+is_log_busy(void)
+{
+  return log.busy;
+}
+
 void
 commit_trans(void)
 {

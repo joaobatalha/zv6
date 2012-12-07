@@ -224,7 +224,7 @@ main(int argc, char *argv[])
   din.child2 = xshort(ditto_inum2);
   winode(rootino, &din);
   
-  fprintf(stderr, "=======> JOAO: root inode checksum %x \n",xint(din.checksum));
+// fprintf(stderr, "=======> JOAO: root inode checksum %x \n",xint(din.checksum));
   //writes the bitmap to fs.img
   balloc(usedblocks);
 
