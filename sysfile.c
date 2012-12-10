@@ -300,7 +300,6 @@ duplicate(char *path, int ndittos)
 	if((ip = namei(path)) == 0)
       return 0;
   ilock(ip);
-
   struct inode *child1, *child2;
 	if (ndittos > 0) {
 		if (ip->child1)
