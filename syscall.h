@@ -22,3 +22,4 @@
 #define SYS_close  21
 #define SYS_iopen  22
 #define SYS_ichecksum 23
+#define SYS_duplicate 24

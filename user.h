@@ -24,6 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 uint ichecksum(int, int);
+int duplicate(char*, int);
 
 
 // ulib.c
