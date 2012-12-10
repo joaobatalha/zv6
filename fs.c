@@ -421,12 +421,13 @@ zc_verify:
        goto zc_verify;
     }
 zc_failure:
-        cprintf("============================\n");
+        /* cprintf("============================\n");
         cprintf("The inum: %d \n", ip->inum);
         cprintf("Inode Type: %d \n", ip->type);
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
-        cprintf("============================\n");
+        cprintf("============================\n"); */
+	iunlock(ip);
 	return -0x666;
 
 zc_success:
