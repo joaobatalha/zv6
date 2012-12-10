@@ -292,6 +292,35 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+static struct inode*
+duplicate(char *path, int ndittos)
+{
+  struct inode *ip;
+
+	if((ip = namei(path)) == 0)
+      return 0;
+  ilock(ip);
+
+  struct inode *child1, *child2;
+	if (ndittos > 0) {
+		if (ip->child1)
+			return 0;
+		child1 = ialloc(ip->dev, T_DITTO);
+		ip->child1 = child1->inum;
+	} 
+	if (ndittos > 1) {
+		if (ip->child2)
+			return 0;
+		child2 = ialloc(ip->dev, T_DITTO);
+		ip->child2 = child2->inum;
+	}
+  
+	ipropagate(ip);
+	iupdate(ip);
+ 
+  return ip;
+}
+
 int
 sys_open(void)
 {
@@ -354,7 +383,9 @@ sys_iopen(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-  ilock(ip);
+	if (ilock(ip)) {
+		return E_CORRUPTED;
+	}
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
@@ -391,7 +422,8 @@ sys_ichecksum(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-  ilock(ip);
+  if (ilock(ip)) 
+		return E_CORRUPTED;
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
@@ -433,6 +465,24 @@ sys_mkdir(void)
 }
 
 int
+sys_duplicate(void)
+{
+  char *path;
+	int ndittos;
+  struct inode *ip;
+
+  begin_trans();
+  if(argstr(0, &path) < 0 || argint(1, &ndittos) < 0 ||
+		(ip = duplicate(path, ndittos)) == 0) {
+    commit_trans();
+    return -1;
+  }
+  iunlockput(ip);
+  commit_trans();
+  return 0;
+}
+
+int
 sys_mknod(void)
 {
   struct inode *ip;
@@ -461,7 +511,9 @@ sys_chdir(void)
 
   if(argstr(0, &path) < 0 || (ip = namei(path)) == 0)
     return -1;
-  ilock(ip);
+  if (ilock(ip))
+		return E_CORRUPTED;
+
   if(ip->type != T_DIR){
     iunlockput(ip);
     return -1;

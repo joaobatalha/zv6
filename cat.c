@@ -1,6 +1,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
+#include "fs.h"
 
 char buf[512];
 
@@ -28,10 +29,14 @@ main(int argc, char *argv[])
   }
 
   for(i = 1; i < argc; i++){
-    if((fd = open(argv[i], 0)) < 0){
+		fd = open(argv[i], 0);
+    if(fd == E_CORRUPTED){
+      printf(1, "cat: %s is corrupted\n", argv[i]);
+      exit();
+    } else if (fd < 0) {
       printf(1, "cat: cannot open %s\n", argv[i]);
       exit();
-    }
+		}
     cat(fd);
     close(fd);
   }

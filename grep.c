@@ -3,6 +3,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
+#include "fs.h"
 
 char buf[1024];
 int match(char*, char*);
@@ -53,7 +54,10 @@ main(int argc, char *argv[])
 
   for(i = 2; i < argc; i++){
     if((fd = open(argv[i], 0)) < 0){
-      printf(1, "grep: cannot open %s\n", argv[i]);
+      printf(1, "grep: cannot open %s", argv[i]);
+			if (fd == E_CORRUPTED)
+				printf(1, ": CORRUPTED");
+			printf(1, "\n");
       exit();
     }
     grep(pattern, fd);

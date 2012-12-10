@@ -67,3 +67,5 @@ enum {
   REPLICA_CHILD_1,
   REPLICA_CHILD_2
 } ditto_replica;
+
+#define E_CORRUPTED -10
