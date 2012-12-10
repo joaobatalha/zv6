@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "user.h"
+#include "fs.h"
 #include "fcntl.h"
 
 // Parsed command representation
@@ -63,6 +64,7 @@ runcmd(struct cmd *cmd)
   struct listcmd *lcmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
+	int r;
 
   if(cmd == 0)
     exit();
@@ -75,8 +77,11 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit();
-    exec(ecmd->argv[0], ecmd->argv);
-    printf(2, "exec %s failed\n", ecmd->argv[0]);
+    r = exec(ecmd->argv[0], ecmd->argv);
+    printf(2, "exec %s failed", ecmd->argv[0]);
+		if (r == E_CORRUPTED)
+			printf(2, ": %s is corrupted", ecmd->argv[0]);
+		printf(2, "\n");
     break;
 
   case REDIR:
