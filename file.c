@@ -88,7 +88,6 @@ filestat(struct file *f, struct stat *st)
     iunlock(f->ip);
     return 0;
   }
-	cprintf("BBB\n");
   return -1;
 }
 

@@ -300,7 +300,6 @@ duplicate(char *path, int ndittos)
 	if((ip = namei(path)) == 0)
       return 0;
   ilock(ip);
-
   struct inode *child1, *child2;
 	if (ndittos > 0) {
 		if (ip->child1)
@@ -341,7 +340,10 @@ sys_open(void)
   } else {
     if((ip = namei(path)) == 0)
       return -1;
-    ilock(ip);
+    
+		if (ilock(ip))
+			return E_CORRUPTED;
+
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       return -1;
@@ -383,7 +385,7 @@ sys_iopen(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-	if (ilock(ip)) {
+	if (ilock(ip) < 0) {
 		return E_CORRUPTED;
 	}
 
