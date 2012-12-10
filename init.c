@@ -31,7 +31,8 @@ main(void)
   de = ((struct dirent *)buf);
 
   while(*(de->name)){
-	if((*(de->name)) == '.'){
+	if((*(de->name)) == '.' ||
+		(strcmp(de->name, "console") == 0)){
 	    de++;
 	    continue;
 	}
