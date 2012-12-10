@@ -339,8 +339,8 @@ ipropagate(struct inode *ip)
         iduplicate(ip, ic, off, n1);
         iunlock(ic);
       }
-      commit_trans();
 
+      commit_trans();
       off += n1;
       i += n1;
     }
@@ -351,12 +351,13 @@ static struct inode*
 duplicate(char *path, int ndittos)
 {
   struct inode *ip;
-
   if((ip = namei_trans(path)) == 0)
       return 0;
+
   ilock_trans(ip);
 
   struct inode *child1, *child2;
+  begin_trans();
 	if (ndittos > 0) {
 		if (ip->child1)
 			return 0;
@@ -370,10 +371,14 @@ duplicate(char *path, int ndittos)
 		child2 = ialloc(ip->dev, T_DITTO);
 		ip->child2 = child2->inum;
 	}
+	commit_trans();
 
 	ipropagate(ip);
-	iupdate(ip);
 
+	begin_trans();
+	iupdate(ip);
+	commit_trans();
+  iunlock(ip);
   return ip;
 }
 
@@ -388,7 +393,7 @@ sys_open(void)
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
 
-	if(omode & O_CREATE){
+  if(omode & O_CREATE){
     begin_trans();
     ip = create(path, T_FILE, 1, 0);
     commit_trans();
@@ -398,8 +403,8 @@ sys_open(void)
     if((ip = namei_trans(path)) == 0)
       return -1;
 
-		if (ilock(ip) == E_CORRUPTED)
-			return E_CORRUPTED;
+    if (ilock_trans(ip) == E_CORRUPTED)
+      return E_CORRUPTED;
 
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
@@ -519,7 +524,7 @@ sys_ichecksum(void)
 
   if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
     return -1;
-  
+
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
@@ -572,14 +577,10 @@ sys_duplicate(void)
 	int ndittos;
   struct inode *ip;
 
-  begin_trans();
   if(argstr(0, &path) < 0 || argint(1, &ndittos) < 0 ||
 		(ip = duplicate(path, ndittos)) == 0) {
-    commit_trans();
     return -1;
   }
-  iunlockput(ip);
-  commit_trans();
   return 0;
 }
 

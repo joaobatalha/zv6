@@ -83,7 +83,8 @@ int
 filestat(struct file *f, struct stat *st)
 {
   if(f->type == FD_INODE){
-    ilock_trans(f->ip);
+    if (ilock_trans(f->ip) == E_CORRUPTED)
+      return E_CORRUPTED;
     stati(f->ip, st);
     iunlock(f->ip);
     return 0;

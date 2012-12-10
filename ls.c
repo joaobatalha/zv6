@@ -29,7 +29,7 @@ ls(char *path)
   struct dirent de;
   struct stat st;
 	int r;
-  
+
   if((fd = open(path, 0)) < 0){
     printf(2, "ls: cannot open %s", path);
 		if (fd == E_CORRUPTED)
@@ -37,21 +37,21 @@ ls(char *path)
 		printf(2, "\n");
     return;
   }
-  
-  if(fstat(fd, &st) < 0){
+
+  if((r = fstat(fd, &st)) < 0){
     printf(2, "ls: cannot stat %s", path);
-		if (fd == E_CORRUPTED)
+		if (r == E_CORRUPTED)
 			printf(2, ": CORRUPTED");
 		printf(2, "\n");
     close(fd);
     return;
   }
-  
+
   switch(st.type){
   case T_FILE:
     printf(1, "%s %d %d %d %d %d %x\n", fmtname(path), st.type, st.ino, st.size, st.child1, st.child2, st.checksum);
     break;
-  
+
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf(1, "ls: path too long\n");
@@ -65,8 +65,9 @@ ls(char *path)
         continue;
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
-			r = stat(buf, &st);
-			if (r == E_CORRUPTED) {
+
+      r = stat(buf, &st);
+      if (r == E_CORRUPTED || r == -E_CORRUPTED) {
       	printf(1, "%s CORRUPTED\n", fmtname(buf));
 				continue;
 			} else if (r < 0){
