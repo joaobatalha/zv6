@@ -313,7 +313,7 @@ create(char *path, short type, short major, short minor)
 static void
 ipropagate(struct inode *ip)
 {
-    int max = ((LOGSIZE-1-1-2) / 6) * 512;
+    int max = ((LOGSIZE-1-1-2) / 2) * 512;
     int i = 0;
     uint off = 0;
     int n = ip->size;
@@ -332,6 +332,10 @@ ipropagate(struct inode *ip)
         iduplicate(ip, ic, off, n1);
         iunlock(ic);
       }
+
+      commit_trans();
+
+      begin_trans();
 
       if (ip->child2) {
         ic = iget(ip->dev, ip->child2);
@@ -377,8 +381,8 @@ duplicate(char *path, int ndittos)
 
 	begin_trans();
 	iupdate(ip);
+	iunlockput(ip);
 	commit_trans();
-  iunlock(ip);
   return ip;
 }
 

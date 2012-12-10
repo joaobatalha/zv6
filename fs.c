@@ -553,18 +553,18 @@ irescue(struct inode *ip, struct inode *rinode)
 // Copy size, checksum, and inode data from a source inode
 // into a destination inode. MUST BE SURROUNDED BY A TRANSACTION!
 void
-iduplicate(struct inode *src, struct inode *dst, uint off, uint n)
+iduplicate(struct inode *src, struct inode *dst, uint off, uint ntotal)
 {
   char buf[512];
 
-  if (n > sizeof(buf)) n = sizeof(buf);
+  uint n = sizeof(buf);
   memset((void*) buf, 0, n);
   uint r;
 
   dst->checksum = src->checksum;
   dst->size = src->size;
 
-  while ((r = readi(src, buf, off, n)) > 0) {
+  while (((r = readi(src, buf, off, n)) > 0) && (off < ntotal) ) {
     writei_ext(dst, buf, off, r, 1);
     off += r;
     memset((void *) buf, 0, n);
