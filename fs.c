@@ -346,10 +346,37 @@ idup(struct inode *ip)
 
 // Lock the given inode.
 // Reads the inode from disk if necessary.
+// Might fail and keep the inode unlocked.
 int
 ilock (struct inode *ip)
 {
   return ilock_ext(ip, 1);
+}
+
+// Reads the given inode, from disk if necessary,
+// Recovering its data in a transaction if necessary.
+// Guaranteed to return a locked inode OR panic, if the
+// file is recoverable.
+int
+ilock_trans(struct inode *ip)
+{
+  int r = ilock(ip);
+  struct inode *ic;
+
+  if (r == 0) return 0;
+
+  if (r == E_CORRUPTED) return E_CORRUPTED;
+
+  if (r > 0) {
+    ic = iget(ip->dev, r);
+    irescue(ip, ic);
+  }
+
+  r = ilock(ip);
+
+  if (r == 0) return 0;
+
+  panic("ilock_trans attempted to recover but still failed to unlock");
 }
 
 int
@@ -411,8 +438,9 @@ zc_verify:
        rinode = iget(ip->dev, rinum);
 
        if (ilock(rinode) == 0) {
-         // Load byte data of rinode into my own byte data
-         irescue(ip, rinode);
+         iunlock(rinode);
+         iunlock(ip);
+         return rinum;
        }
 
        iunlock(rinode);
@@ -428,7 +456,7 @@ zc_failure:
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n"); */
 	iunlock(ip);
-	return -0x666;
+	return E_CORRUPTED;
 
 zc_success:
 /*    cprintf("[inum %d] the checksums MATCHED\n    ip->c = %p  == c() = %p\n",
@@ -494,46 +522,43 @@ iunlockput(struct inode *ip)
 void
 irescue(struct inode *ip, struct inode *rinode)
 {
-  int r = is_log_busy();
 
-  if (r == 0) begin_trans();
-  iduplicate(rinode, ip);
-  if (r == 0) commit_trans();
-}
+  int max = ((LOGSIZE-1-1-2) / 4) * 512;
+  int i = 0;
+  uint off = 0;
 
-// Copy size, checksum, and inode data from a parent
-// inode to its replicas. MUST BE SURROUNDED BY TRANSACTION!
-void
-ipropagate(struct inode *ip)
-{
-  struct inode *ic;
+  ilock_ext(rinode, 0);
+  ilock_ext(ip, 0);
 
-  if (ip->child1) {
-    ic = iget(ip->dev, ip->child1);
-    ilock_ext(ic, 0);
-    iduplicate(ip, ic);
-    iunlock(ic);
+  int n = ip->size;
+
+  while(i < n){
+    int n1 = n - i;
+    if(n1 > max)
+      n1 = max;
+
+    begin_trans();
+    iduplicate(rinode, ip, off, n1);
+    commit_trans();
+
+    off += n1;
+    i += n1;
   }
 
-  if (ip->child2) {
-    ic = iget(ip->dev, ip->child2);
-    ilock_ext(ic, 0);
-    iduplicate(ip, ic);
-    iunlock(ic);
-  }
+  iunlock(rinode);
+  iunlock(ip);
 
 }
 
 // Copy size, checksum, and inode data from a source inode
 // into a destination inode. MUST BE SURROUNDED BY A TRANSACTION!
 void
-iduplicate(struct inode *src, struct inode *dst)
+iduplicate(struct inode *src, struct inode *dst, uint off, uint n)
 {
   char buf[512];
 
-  uint n = sizeof(buf);
+  if (n > sizeof(buf)) n = sizeof(buf);
   memset((void*) buf, 0, n);
-  uint off = 0;
   uint r;
 
   dst->checksum = src->checksum;
@@ -845,7 +870,7 @@ skipelem(char *path, char *name)
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 static struct inode*
-namex(char *path, int nameiparent, char *name)
+namex(char *path, int nameiparent, char *name, int trans)
 {
   struct inode *ip, *next;
 
@@ -855,7 +880,13 @@ namex(char *path, int nameiparent, char *name)
     ip = idup(proc->cwd);
 
   while((path = skipelem(path, name)) != 0){
-    ilock(ip);
+
+    if (trans) {
+      if (ilock_trans(ip) != 0) return 0; // Failed to recover and lock
+    } else {
+      if (ilock(ip) != 0) return 0; // Failed to lock
+    }
+
     if(ip->type != T_DIR){
       iunlockput(ip);
       return 0;
@@ -880,35 +911,60 @@ namex(char *path, int nameiparent, char *name)
 }
 
 struct inode*
-namei(char *path)
+namei_ext(char *path, int trans)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name);
+  return namex(path, 0, name, trans);
+}
+
+struct inode*
+nameiparent_ext(char *path, char *name, int trans)
+{
+  return namex(path, 1, name, trans);
+}
+
+struct inode*
+namei(char *path)
+{
+  return namei_ext(path, 0);
 }
 
 struct inode*
 nameiparent(char *path, char *name)
 {
-  return namex(path, 1, name);
+  return nameiparent_ext(path, name, 0);
 }
 
 
-int 
+struct inode*
+namei_trans(char *path)
+{
+  return namei_ext(path, 1);
+}
+
+struct inode*
+nameiparent_trans(char *path, char *name)
+{
+  return nameiparent_ext(path, name, 1);
+}
+
+
+int
 distance_to_root(char *path){
     char name[DIRSIZ];
-    struct inode *dp, *ip; 
+    struct inode *dp, *ip;
     uint inum1,inum2;
     uint off;
-    dp = nameiparent(path, name);
-    ilock(dp); 
+    dp = nameiparent_ext(path, name, 1);
+    ilock_trans(dp);
     int counter = 1;
     while((ip = dirlookup(dp,"..", &off) ) != 0){
 	inum1 = dp->inum;
 	iunlockput(dp);
 	dp = ip;
-	ilock(dp);
+	ilock_trans(dp);
 	inum2 = dp->inum;
-	//If this is the root. 
+	//If this is the root.
 	if(inum1 == inum2){
 	    iunlockput(dp);
 	    break;

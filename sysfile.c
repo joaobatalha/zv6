@@ -14,6 +14,9 @@
 #include "file.h"
 #include "fcntl.h"
 
+//static struct inode* iget(uint dev, uint inum);
+struct inode* iget(uint dev, uint inum);
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -104,7 +107,7 @@ sys_fstat(void)
 {
   struct file *f;
   struct stat *st;
-  
+
   if(argfd(0, 0, &f) < 0 || argptr(1, (void*)&st, sizeof(*st)) < 0)
     return -1;
   return filestat(f, st);
@@ -116,15 +119,16 @@ sys_link(void)
 {
   char name[DIRSIZ], *new, *old;
   struct inode *dp, *ip;
+  int r;
 
   if(argstr(0, &old) < 0 || argstr(1, &new) < 0)
     return -1;
-  if((ip = namei(old)) == 0)
+  if((ip = namei_trans(old)) == 0)
     return -1;
 
+  ilock_trans(ip);
   begin_trans();
 
-  ilock(ip);
   if(ip->type == T_DIR){
     iunlockput(ip);
     commit_trans();
@@ -137,7 +141,12 @@ sys_link(void)
 
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
-  ilock(dp);
+
+  if ((r = ilock(dp)) != 0) {
+    cprintf("ilocked failed with val r = %d.\n", r);
+    panic("sys_link");
+  }
+
   if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
     iunlockput(dp);
     goto bad;
@@ -182,15 +191,19 @@ sys_unlink(void)
   struct dirent de;
   char name[DIRSIZ], *path;
   uint off;
+  int r;
 
   if(argstr(0, &path) < 0)
     return -1;
-  if((dp = nameiparent(path, name)) == 0)
+  if((dp = nameiparent_trans(path, name)) == 0)
     return -1;
 
   begin_trans();
 
-  ilock(dp);
+  if ((r = ilock(dp)) < 0) {
+    cprintf("ilocked failed with val r = %d.\n", r);
+    panic("sys_unlink");
+  }
 
   // Cannot unlink "." or "..".
   if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
@@ -198,7 +211,11 @@ sys_unlink(void)
 
   if((ip = dirlookup(dp, name, &off)) == 0)
     goto bad;
-  ilock(ip);
+
+  if ((r = ilock(ip)) < 0) {
+    cprintf("ilocked failed with val r = %d.\n", r);
+    panic("sys_link");
+  }
 
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
@@ -236,11 +253,11 @@ create(char *path, short type, short major, short minor)
   uint off;
   struct inode *ip, *dp;
   char name[DIRSIZ];
-  int dtr;//distance to root directory
+  int dtr; //distance to root directory
 
-  if((dp = nameiparent(path, name)) == 0)
-    return 0;
   dtr = distance_to_root(path);
+  if((dp = nameiparent_trans(path, name)) == 0)
+    return 0;
   ilock(dp);
 
   if((ip = dirlookup(dp, name, &off)) != 0){
@@ -292,31 +309,71 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+// Helper function
+static void
+ipropagate(struct inode *ip)
+{
+    int max = ((LOGSIZE-1-1-2) / 6) * 512;
+    int i = 0;
+    uint off = 0;
+    int n = ip->size;
+    struct inode *ic;
+
+    while(i < n){
+      int n1 = n - i;
+      if(n1 > max)
+        n1 = max;
+
+      begin_trans();
+
+      if (ip->child1) {
+        ic = iget(ip->dev, ip->child1);
+        ilock_ext(ic, 0);
+        iduplicate(ip, ic, off, n1);
+        iunlock(ic);
+      }
+
+      if (ip->child2) {
+        ic = iget(ip->dev, ip->child2);
+        ilock_ext(ic, 0);
+        iduplicate(ip, ic, off, n1);
+        iunlock(ic);
+      }
+      commit_trans();
+
+      off += n1;
+      i += n1;
+    }
+
+}
+
 static struct inode*
 duplicate(char *path, int ndittos)
 {
   struct inode *ip;
 
-	if((ip = namei(path)) == 0)
+  if((ip = namei_trans(path)) == 0)
       return 0;
-  ilock(ip);
+  ilock_trans(ip);
+
   struct inode *child1, *child2;
 	if (ndittos > 0) {
 		if (ip->child1)
 			return 0;
 		child1 = ialloc(ip->dev, T_DITTO);
 		ip->child1 = child1->inum;
-	} 
+	}
+
 	if (ndittos > 1) {
 		if (ip->child2)
 			return 0;
 		child2 = ialloc(ip->dev, T_DITTO);
 		ip->child2 = child2->inum;
 	}
-  
+
 	ipropagate(ip);
 	iupdate(ip);
- 
+
   return ip;
 }
 
@@ -330,7 +387,7 @@ sys_open(void)
 
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
-  
+
 	if(omode & O_CREATE){
     begin_trans();
     ip = create(path, T_FILE, 1, 0);
@@ -338,10 +395,10 @@ sys_open(void)
     if(ip == 0)
       return -1;
   } else {
-    if((ip = namei(path)) == 0)
+    if((ip = namei_trans(path)) == 0)
       return -1;
-    
-		if (ilock(ip))
+
+		if (ilock(ip) == E_CORRUPTED)
 			return E_CORRUPTED;
 
     if(ip->type == T_DIR && omode != O_RDONLY){
@@ -376,7 +433,7 @@ sys_forceopen(void)
 
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
-  
+
 	if(omode & O_CREATE){
     begin_trans();
     ip = create(path, T_FILE, 1, 0);
@@ -384,9 +441,9 @@ sys_forceopen(void)
     if(ip == 0)
       return -1;
   } else {
-    if((ip = namei(path)) == 0)
+    if((ip = namei_trans(path)) == 0)
       return -1;
-    
+
 	ilock_ext(ip, 0);
 
     if(ip->type == T_DIR && omode != O_RDONLY){
@@ -411,9 +468,6 @@ sys_forceopen(void)
   return fd;
 }
 
-//static struct inode* iget(uint dev, uint inum);
-struct inode* iget(uint dev, uint inum);
-
 int
 sys_iopen(void)
 {
@@ -430,7 +484,7 @@ sys_iopen(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-	if (ilock(ip) < 0) {
+	if (ilock(ip) == E_CORRUPTED) {
 		return E_CORRUPTED;
 	}
 
@@ -469,7 +523,7 @@ sys_ichecksum(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-  if (ilock(ip)) 
+  if (ilock(ip) == E_CORRUPTED)
 		return E_CORRUPTED;
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
@@ -536,7 +590,7 @@ sys_mknod(void)
   char *path;
   int len;
   int major, minor;
-  
+
   begin_trans();
   if((len=argstr(0, &path)) < 0 ||
      argint(1, &major) < 0 ||
@@ -556,9 +610,9 @@ sys_chdir(void)
   char *path;
   struct inode *ip;
 
-  if(argstr(0, &path) < 0 || (ip = namei(path)) == 0)
+  if(argstr(0, &path) < 0 || (ip = namei_trans(path)) == 0)
     return -1;
-  if (ilock(ip))
+  if (ilock(ip) == E_CORRUPTED)
 		return E_CORRUPTED;
 
   if(ip->type != T_DIR){

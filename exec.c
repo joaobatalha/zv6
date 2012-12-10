@@ -19,9 +19,9 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
 
-  if((ip = namei(path)) == 0)
+  if((ip = namei_trans(path)) == 0)
     return -1;
-  if (ilock(ip)) {
+  if (ilock_trans(ip)) {
 		return E_CORRUPTED;
 	}
   pgdir = 0;
