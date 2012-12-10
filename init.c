@@ -4,6 +4,7 @@
 #include "stat.h"
 #include "user.h"
 #include "fcntl.h"
+#include "fs.h"
 
 char *argv[] = { "sh", 0 };
 
@@ -18,6 +19,28 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+  
+  int root_fd;
+  char buf[512];
+  struct dirent *de;
+
+  root_fd = open(".", O_RDONLY);
+  read(root_fd, buf,sizeof(buf));
+  close(root_fd);
+
+  de = ((struct dirent *)buf);
+
+  while(*(de->name)){
+	if((*(de->name)) == '.'){
+	    de++;
+	    continue;
+	}
+	if(hasdittos(de->name) == 0){
+	    duplicate(de->name, 2);
+	}
+	 de++;
+  }
+
 
   for(;;){
     printf(1, "init: starting sh\n");
