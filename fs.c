@@ -427,6 +427,7 @@ zc_failure:
         cprintf("Checksum in inode: %x \n",ip->checksum);
         cprintf("Computed checksum: %x \n", ichecksum(ip));
         cprintf("============================\n");
+
 	return -0x666;
 
 zc_success:
