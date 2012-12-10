@@ -366,6 +366,51 @@ sys_open(void)
   return fd;
 }
 
+int
+sys_forceopen(void)
+{
+  char *path;
+  int fd, omode;
+  struct file *f;
+  struct inode *ip;
+
+  if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
+    return -1;
+  
+	if(omode & O_CREATE){
+    begin_trans();
+    ip = create(path, T_FILE, 1, 0);
+    commit_trans();
+    if(ip == 0)
+      return -1;
+  } else {
+    if((ip = namei(path)) == 0)
+      return -1;
+    
+	ilock_ext(ip, 0);
+
+    if(ip->type == T_DIR && omode != O_RDONLY){
+      iunlockput(ip);
+      return -1;
+    }
+  }
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+    if(f)
+      fileclose(f);
+    iunlockput(ip);
+    return -1;
+  }
+  iunlock(ip);
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = !(omode & O_WRONLY);
+  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+  return fd;
+}
+
 //static struct inode* iget(uint dev, uint inum);
 struct inode* iget(uint dev, uint inum);
 
