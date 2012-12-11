@@ -61,12 +61,15 @@ ls(char *path)
     p = buf+strlen(buf);
     *p++ = '/';
     while(read(fd, &de, sizeof(de)) == sizeof(de)){
+
       if(de.inum == 0)
         continue;
+
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
 
       r = stat(buf, &st);
+
       if (r == E_CORRUPTED || r == -E_CORRUPTED) {
       	printf(1, "%s CORRUPTED\n", fmtname(buf));
 				continue;
