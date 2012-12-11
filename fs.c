@@ -557,11 +557,13 @@ iduplicate(struct inode *src, struct inode *dst, uint off, uint ntotal)
   uint n = sizeof(buf);
   memset((void*) buf, 0, n);
   uint r;
+  uint _off = off;
 
   dst->checksum = src->checksum;
   dst->size = src->size;
 
-  while (((r = readi(src, buf, off, n)) > 0) && (off < ntotal) ) {
+  while (((r = readi(src, buf, off, n)) > 0) && (off < (ntotal+_off)) ) {
+cprintf("[%d] iduplicate: Calling writei on %d with off = %d, n = %d.\n", src->inum, dst->inum, off, n);
     writei_ext(dst, buf, off, r, 1);
     off += r;
     memset((void *) buf, 0, n);
