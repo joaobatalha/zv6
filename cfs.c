@@ -15,10 +15,10 @@
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-int nblocks = 985;
+int nblocks = 1999;
 int nlog = LOGSIZE;
 int ninodes = 200;
-int size = 1024;
+int size = 2048;
 
 int fsfd;
 struct superblock sb;
