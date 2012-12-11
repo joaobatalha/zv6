@@ -495,7 +495,7 @@ sys_iopen(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-  if (( r = ilock(ip)) == E_CORRUPTED) {
+  if (( r = ilock_trans(ip)) == E_CORRUPTED) {
     return E_CORRUPTED;
   } else if ( r != 0) {
     return -4;
@@ -537,7 +537,7 @@ sys_ichecksum(void)
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-  if (ilock(ip) == E_CORRUPTED)
+  if (ilock_trans(ip) == E_CORRUPTED)
 		return E_CORRUPTED;
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
