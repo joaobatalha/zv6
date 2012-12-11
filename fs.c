@@ -361,6 +361,7 @@ int
 ilock_trans(struct inode *ip)
 {
   int r = ilock(ip);
+
   struct inode *ic;
 
   if (r == 0) return 0;
@@ -429,6 +430,8 @@ zc_verify:
          rinum = ip->child1;
        else if (replica == REPLICA_CHILD_2)
          rinum = ip->child2;
+       else
+         goto zc_failure;
 
        if (!rinum)
          goto zc_failure;
@@ -563,7 +566,7 @@ iduplicate(struct inode *src, struct inode *dst, uint off, uint ntotal)
   dst->size = src->size;
 
   while (((r = readi(src, buf, off, n)) > 0) && (off < (ntotal+_off)) ) {
-cprintf("[%d] iduplicate: Calling writei on %d with off = %d, n = %d.\n", src->inum, dst->inum, off, n);
+/* cprintf("[%d] iduplicate: Calling writei on %d with off = %d, n = %d.\n", src->inum, dst->inum, off, n); // */
     writei_ext(dst, buf, off, r, 1);
     off += r;
     memset((void *) buf, 0, n);

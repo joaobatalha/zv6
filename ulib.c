@@ -107,7 +107,7 @@ memmove(void *vdst, void *vsrc, int n)
 int
 hasdittos(char * path){
     int fd;
-    fd = open(path, O_RDONLY);
+    fd = forceopen(path, O_RDONLY);
     struct stat st;
     fstat(fd, &st);
     close(fd);
