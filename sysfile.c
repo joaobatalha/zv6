@@ -329,6 +329,7 @@ ipropagate(struct inode *ip)
       if (ip->child1) {
         ic = iget(ip->dev, ip->child1);
         ilock_ext(ic, 0);
+/*cprintf("[%d] Calling iduplicate on IC=%d, off = %d, n1 = %d.\n", ip->inum, ic->inum, off, n1); // */
         iduplicate(ip, ic, off, n1);
         iunlock(ic);
       }
@@ -359,7 +360,7 @@ duplicate(char *path, int ndittos)
       return 0;
 
   ilock_trans(ip);
-
+//cprintf("[%d] Calling duplicate on inode with size %d.\n", ip->inum, ip->size);
   struct inode *child1, *child2;
   begin_trans();
 	if (ndittos > 0) {
@@ -376,7 +377,7 @@ duplicate(char *path, int ndittos)
 		ip->child2 = child2->inum;
 	}
 	commit_trans();
-
+//cprintf("[%d] Calling ipropagate.\n", ip->inum);
 	ipropagate(ip);
 
 	begin_trans();
