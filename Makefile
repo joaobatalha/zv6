@@ -174,8 +174,8 @@ UPROGS=\
 	_pcat\
 	_idesignate\
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+fs.img: mkfs README $(UPROGS) mkdirtree
+	./mkfs fs.img README $(UPROGS) mkdirtree
 
 -include *.d
 

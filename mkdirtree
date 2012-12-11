@@ -1,0 +1,6 @@
+mkdir t0
+mkdir t0/t1
+mkdir t0/t1/t2
+mkdir t0/t1/t2/t3
+mkdir t0/t1/t2/t3/t4
+mkdir t0/t1/t2/t3/t4/t5
