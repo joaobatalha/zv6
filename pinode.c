@@ -14,17 +14,17 @@ pinode(char *devnum, char *inum)
 
 	if ((fd = iopen(dev, iint)) < 0) {
 		printf(2, "pinode: cannot open inode %d on dev %d\n", iint, dev);
-		close(fd);
 		return;
 	}
-
 
 	if (fstat(fd, &st) < 0) {
 		printf(2, "pinode: cannot stat inode %d on dev %d (fd=%d)\n", iint, dev, fd);
 		close(fd);
 		return;
 	}
-	
+
+	close(fd);
+
 	printf(1, "%d  %d  %d  %x\n", iint, st.child1, st.child2, st.checksum);
 }
 

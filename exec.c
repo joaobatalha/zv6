@@ -21,9 +21,10 @@ exec(char *path, char **argv)
 
   if((ip = namei_trans(path)) == 0)
     return -1;
-  if (ilock_trans(ip)) {
-		return E_CORRUPTED;
-	}
+
+  if (ilock_trans(ip))
+    return E_CORRUPTED;
+
   pgdir = 0;
 
   // Check ELF header
@@ -49,6 +50,7 @@ exec(char *path, char **argv)
     if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
+
   iunlockput(ip);
   ip = 0;
 

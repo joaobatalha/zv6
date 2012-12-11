@@ -383,6 +383,7 @@ duplicate(char *path, int ndittos)
 	iupdate(ip);
 	iunlockput(ip);
 	commit_trans();
+
   return ip;
 }
 
@@ -486,16 +487,19 @@ sys_iopen(void)
   struct file *f;
   struct inode *ip;
 	int omode = 0;
+  int r;
 
   if(argint(0, &dev) < 0 || argint(1, &inum) < 0)
     return -1;
-  
+
   if((ip = iget((uint)dev, inum)) == 0)
     return -2;
 
-	if (ilock(ip) == E_CORRUPTED) {
-		return E_CORRUPTED;
-	}
+  if (( r = ilock(ip)) == E_CORRUPTED) {
+    return E_CORRUPTED;
+  } else if ( r != 0) {
+    return -4;
+  }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
@@ -503,6 +507,7 @@ sys_iopen(void)
     iunlockput(ip);
     return -3;
   }
+
   iunlock(ip);
 
   f->type = FD_INODE;

@@ -283,7 +283,7 @@ cupdate(struct inode *ip, struct inode *ic)
   dic->type = ic->type;
   dic->major = ic->major;
   dic->minor = ic->minor;
-  dic->nlink = ic->nlink;
+  dic->nlink = 1;
   ic->size = ip->size; // We get the size from the parent!
   dic->size = ic->size;
   dic->child1 = ic->child1;
@@ -398,7 +398,7 @@ ilock_ext(struct inode *ip, int checksum)
 
   if(!(ip->flags & I_VALID)){
     bp = bread(ip->dev, IBLOCK(ip->inum));
-   dip = (struct dinode*)bp->data + ip->inum%IPB;
+    dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;
@@ -420,7 +420,6 @@ ilock_ext(struct inode *ip, int checksum)
 
 zc_verify:
     if(ichecksum(ip) == ip->checksum){
-
        goto zc_success;
     } else {
        replica++;
@@ -442,8 +441,6 @@ zc_verify:
          iunlock(ip);
          return rinum;
        }
-
-       iunlock(rinode);
 
        // Try to verify again...
        goto zc_verify;
@@ -712,7 +709,7 @@ writei_ext(struct inode *ip, char *src, uint off, uint n, uint skip)
       return -1;
     return devsw[ip->major].write(ip, src, n);
   }
-/*cprintf("[%d] WRITE BEGINS WITH SRC ADDR = %p\n     FIRST CHAR = %s\n     off = %d\n     n = %d\n     skip = %d.\n", ip->inum, src, *src, off, n, skip);*/
+/*cprintf("[%d] WRITE BEGINS WITH SRC ADDR = %p\n     CHAR = %s\n     off = %d\n     n = %d\n     skip = %d.\n",ip->inum, _src, _src, off, n, skip);// */
   if(off > ip->size || off + n < off)
     return -1;
   if(off + n > MAXFILE*BSIZE)
