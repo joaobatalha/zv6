@@ -32,11 +32,18 @@ main(void)
 
   while(*(de->name)){
 	if((*(de->name)) == '.' ||
-		(strcmp(de->name, "console") == 0)){
+		(strcmp(de->name, "console") == 0) || 
+		(strcmp(de->name, "stressfs") == 0) || 
+		(strcmp(de->name, "usertests") == 0) || 
+		(strcmp(de->name, "pinode") == 0) || 
+		(strcmp(de->name, "pchecksum") == 0) || 
+		(strcmp(de->name, "pcat") == 0) || 
+		(strcmp(de->name, "idesignate") == 0)) {
 	    de++;
 	    continue;
 	}
 	if(hasdittos(de->name) == 0){
+	    printf(1, "Creating backup copy for: %s \n", de->name);
 	    duplicate(de->name, 2);
 	}
 	 de++;

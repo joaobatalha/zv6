@@ -12,7 +12,6 @@
 #include "stat.h"
 #include "param.h"
 
-#define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 int nblocks = 1999;
@@ -164,56 +163,6 @@ rsect(uint sec, void *buf)
 
 
 
-//void
-//iappend(uint inum, void *xp, int n)
-//{
-//  char *p = (char*)xp;
-//  uint fbn, off, n1;
-//  struct dinode din;
-//  char buf[512];
-//  uint indirect[NINDIRECT];
-//  uint x;
-//
-//  rinode(inum, &din);
-//
-//  off = xint(din.size);
-//  while(n > 0){
-//    fbn = off / 512;
-//    assert(fbn < MAXFILE);
-//    if(fbn < NDIRECT){
-//      if(xint(din.addrs[fbn]) == 0){
-//        din.addrs[fbn] = xint(freeblock++);
-//        usedblocks++;
-//      }
-//      x = xint(din.addrs[fbn]);
-//    } else {
-//      if(xint(din.addrs[NDIRECT]) == 0){
-//        // printf("allocate indirect block\n");
-//        din.addrs[NDIRECT] = xint(freeblock++);
-//        usedblocks++;
-//      }
-//      // printf("read indirect block\n");
-//      // The address just points to a block
-//      rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
-//      if(indirect[fbn - NDIRECT] == 0){
-//        indirect[fbn - NDIRECT] = xint(freeblock++);
-//        usedblocks++;
-//        wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
-//      }
-//      x = xint(indirect[fbn-NDIRECT]);
-//    }
-//    n1 = min(n, (fbn + 1) * 512 - off);
-//    rsect(x, buf);
-//    bcopy(p, buf + off - (fbn * 512), n1);
-//    wsect(x, buf);
-//    n -= n1;
-//    off += n1;
-//    p += n1;
-//  }
-//  din.size = xint(off);
-//  winode(inum, &din);
-//}
-
 int
 icorrupt(uint inum, void *xp, int n, int pct)
 {
@@ -235,14 +184,11 @@ icorrupt(uint inum, void *xp, int n, int pct)
     if(fbn < NDIRECT){
       x = xint(din.addrs[fbn]);
     } else {
-      // printf("read indirect block\n");
-      // The address just points to a block
       rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       x = xint(indirect[fbn-NDIRECT]);
     }
     n1 = min(n, (fbn + 1) * 512 - off);
     rsect(x, buf);
-//    bcopy(p, buf + off - (fbn * 512), n1);
     c = (char *) &buf;
     counter += flip_bits(pct, c, n1);
     wsect(x, buf);
@@ -323,45 +269,4 @@ rblock(struct dinode *din, uint bn, char *dst){
 	return;
     }
 }
-//
-//uint
-//ichecksum(struct dinode *din){
-//    unsigned int buf[512];
-//    char *cbuf = (char *) buf;
-//    uint n = sizeof(buf);
-//    uint off = 0;
-//    uint r, i;
-//    unsigned int checksum = 0;
-//    memset((void *) cbuf,0,n); 
-//    unsigned int * bp;
-//
-//    while((r = readi(din, cbuf,off,n)) > 0){
-//	off += r;
-//	bp = (unsigned int *)buf;
-//	for(i = 0; i < sizeof(buf) / sizeof(uint); i++){ 
-//	    checksum ^= *bp;
-//	    bp++;
-//	}
-//	memset((void *) cbuf,0,n); 
-//    }
-//
-//    return checksum;
-//}
-//
-//void
-//copy_dinode_content(struct dinode *src, uint dst){
-//    char buf[512];
-//    char *cbuf = (char *) buf;
-//    uint n = sizeof(buf);
-//    uint off = 0;
-//    uint r;
-//    memset((void *) cbuf,0,n); 
-//
-//    while((r = readi(src, cbuf,off,n)) > 0){
-//	off += r;
-//	iappend(dst, cbuf, r);
-//	memset((void *) cbuf,0,n); 
-//    }
-//}
-
 
