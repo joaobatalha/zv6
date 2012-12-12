@@ -359,7 +359,10 @@ duplicate(char *path, int ndittos)
   if((ip = namei_trans(path)) == 0)
       return 0;
 
-  ilock_trans(ip);
+  if (ilock_trans(ip) == E_CORRUPTED) {
+    return 0;
+  }
+
 //cprintf("[%d] Calling duplicate on inode with size %d.\n", ip->inum, ip->size);
   struct inode *child1, *child2;
   begin_trans();

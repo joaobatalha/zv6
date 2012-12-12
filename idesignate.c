@@ -14,7 +14,7 @@ main(int argc, char *argv[])
   }
   if(hasdittos(argv[1]) == 0){
     r = duplicate(argv[1], atoi(argv[2]));
-    if(r == 0){
+    if(r < 0){
 	printf(1,"Something went wrong with duplicate\n"); 
     }
   }
