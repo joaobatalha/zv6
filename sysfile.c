@@ -212,9 +212,9 @@ sys_unlink(void)
   if((ip = dirlookup(dp, name, &off)) == 0)
     goto bad;
 
-  if ((r = ilock(ip)) < 0) {
-    cprintf("ilocked failed with val r = %d.\n", r);
-    panic("sys_link");
+  if ((r = ilock_ext(ip, 0)) < 0) {
+    cprintf("ilock failed with val r = %d.\n", r);
+    panic("sys_unlink");
   }
 
   if(ip->nlink < 1)
